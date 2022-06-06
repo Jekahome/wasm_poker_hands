@@ -1,0 +1,38 @@
+[package]
+name = "poker_hands"
+version = "0.1.0"
+authors = ["Jekahome <yaroshjeka@gmail.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+console_error_panic_hook = "0.1"
+js-sys = "0.3.57"
+ 
+wasm-bindgen = { version = "0.2.80", features = ['serde-serialize'] }
+wasm-bindgen-futures = "0.4.30"
+serde = { version = "^1.0", features = ["derive"] }
+serde_derive = "^1.0"
+
+[dependencies.web-sys]
+version = "0.3.23"
+features = [
+  'CanvasRenderingContext2d',
+  'ErrorEvent',
+  'Event',
+  'ImageData',
+  'Navigator',
+  'Window',
+  'Worker',
+  'DedicatedWorkerGlobalScope',
+  'MessageEvent',
+]
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.13"
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"
