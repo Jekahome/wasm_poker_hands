@@ -1,0 +1,16 @@
+{
+  "name": "poker_hands",
+  "collaborators": [
+    "Jekahome <yaroshjeka@gmail.com>"
+  ],
+  "version": "0.1.0",
+  "files": [
+    "poker_hands_bg.wasm",
+    "poker_hands.js",
+    "poker_hands_bg.js",
+    "poker_hands.d.ts"
+  ],
+  "module": "poker_hands.js",
+  "types": "poker_hands.d.ts",
+  "sideEffects": false
+}

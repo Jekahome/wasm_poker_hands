@@ -19,9 +19,10 @@ function loadWasm() {
     return
   }
 */
-  wasm_bindgen('./poker_hands_bg.wasm')
+  wasm_bindgen('../pkg/poker_hands_bg.wasm')
     .then(run)
     .catch(console.error);
+
 }
 
 loadWasm();
@@ -35,17 +36,18 @@ function run(){
      let c6 = new Card(2048,10);
      let c7 = new Card(4096,10);
      let hand = new Hand("flash1",c1,c2,c3,c4,c5,c6,c7);
-    // let arr = new Array();
-     //arr.push(hand);
+    
      let manager = new Menager();
      manager.add(hand);
      let res = manager.calculate_wasm();
      for(var i=0; i<res.length; i++){
-      console.log(res[i].key_range,res[i].combination);
-      for (let c of res[i].get_cards()){
-        let card = c.get();
-        console.log("Card:",card.n,card.m);
+       console.log(res[i].key_range,res[i].combination);
+       for (let c of res[i].get_cards()){
+         let card = c.get();
+         console.log("Card:",card.n,card.m);
       }
      }
 }
+
+
  
