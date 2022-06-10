@@ -17,6 +17,14 @@
   <sub>Built with 🦀🕸 by <a href="https://rustwasm.github.io/">The Rust and WebAssembly Working Group</a></sub>
 </div>
 
+## Help
+
+```
+Run test
+$ cargo test -- --nocapture
+
+```
+
 ## About
 
 This template is designed for depending on NPM packages that contain
@@ -31,6 +39,10 @@ Rust-generated WebAssembly and using them to create a Website.
 
 ## 🚴 Usage
 
+Rust: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+wasm-pack: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
 ```
 npm init wasm-app
 
@@ -39,12 +51,6 @@ or
 npm init wasm-app my-new-wasm-app
 npm install
 npm start
-```
-
-```
- "dependencies": {
-    "poker_hands": "file:../pkg"
-  },
 ```
 
 ## 🔋 Batteries Included
@@ -61,6 +67,63 @@ npm start
       - [`webpack-dev-server`](https://www.npmjs.com/package/webpack-dev-server)
   - defines a `start` script to run `webpack-dev-server`
 - `webpack.config.js`: configuration file for bundling your js with webpack
+
+## Use in NEXT.js
+
+```
+1. copy folder pkg in root project
+
+2. Setting next.config.js
+
+    module.exports = {
+      experimental: { images: { layoutRaw: true } },
+      webpack(config) {
+        config.output.webassemblyModuleFilename = 'static/wasm/[modulehash].wasm'
+        config.experiments = { asyncWebAssembly: true }
+        return config
+      },
+    }
+
+ 3. Import in class React
+
+
+ export default class YourComponent extends React.Component {
+   mod_wasm;
+   componentDidMount() {
+      // после того, как компонент отрендерился в DOM 
+      (async () => {  
+         // Dynamically load
+         this.mod_wasm = (await import('../../pkg/'))
+       }).bind(this)();
+    }
+    ....
+    handleChange(e){
+         let c1 = new this.mod_wasm.Card(1,100);
+         let c2 = new this.mod_wasm.Card(2,100);
+         let c3 = new this.mod_wasm.Card(4,100);
+         let c4 = new this.mod_wasm.Card(8,100);
+         let c5 = new this.mod_wasm.Card(16,100);
+         let c6 = new this.mod_wasm.Card(2048,10);
+         let c7 = new this.mod_wasm.Card(4096,10);
+         let hand = new this.mod_wasm.Hand("flash1",c1,c2,c3,c4,c5,c6,c7);
+      
+         let manager = new this.mod_wasm.Menager();
+         manager.add(hand);
+         let res = manager.calculate_wasm();
+         for(var i=0; i<res.length; i++){
+            console.log(res[i].key_range,res[i].combination);
+            for (let c of res[i].get_cards()){
+               let card = c.get();
+               console.log(">>>Card<<<:",card.n,card.m);
+            }
+         }
+    }
+  }
+
+
+```
+
+
 
 ## License
 

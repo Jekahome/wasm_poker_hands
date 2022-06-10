@@ -1,18 +1,24 @@
- 
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
+mod utils;
 use js_sys::{Promise, Uint8ClampedArray, WebAssembly};
- 
+
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
- 
+
 use std::cmp::Ordering;
 use std::cmp::PartialEq;
 use std::fmt;
 
 use std::collections::HashMap;
- 
+
+// When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
+// allocator.
+#[cfg(feature = "wee_alloc")]
+#[global_allocator]
+static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+
 macro_rules! console_log {
     ($($t:tt)*) => (crate::log(&format_args!($($t)*).to_string()))
 }
@@ -24,9 +30,9 @@ extern "C" {
     #[wasm_bindgen(js_namespace = console, js_name = log)]
     fn logv(x: &JsValue);
 }
- 
+
 #[wasm_bindgen]
-#[derive(Eq, Hash, Debug, Clone, Copy, PartialOrd, PartialEq)]
+#[derive(Hash, Debug, Clone, Copy, PartialEq, PartialOrd, Eq)]
 pub enum Combination {
     RoyalFlush = 9,
     StraightFlush = 8,
@@ -39,6 +45,23 @@ pub enum Combination {
     Pair = 1,
     HighCard = 0,
 }
+/*
+impl PartialEq<Combination> for Combination {
+    fn eq(&self, other: &Self) -> bool {
+        *self as u8 == *other as u8
+    }
+}
+impl PartialOrd for Combination {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (*self as u8).partial_cmp(&(*other as u8)).unwrap() {
+            Ordering::Equal => Some(Ordering::Equal),
+            Ordering::Greater => Some(Ordering::Greater),
+            Ordering::Less => Some(Ordering::Less),
+        }
+    }
+}
+impl Eq for Combination {}
+*/
 impl fmt::Display for Combination {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -80,7 +103,8 @@ impl fmt::Display for Combination {
 #[derive(Debug, Clone)]
 pub struct FullCombination {
     pub combination: Combination,
-    pub key_range:u8,
+    pub key_range_group: u8,
+    pub key_hand: &'static str,
     cards: Vec<Card>,
 }
 impl PartialEq<FullCombination> for FullCombination {
@@ -123,19 +147,23 @@ impl fmt::Display for FullCombination {
 #[wasm_bindgen]
 impl FullCombination {
     #[wasm_bindgen(js_name = get_cards)]
-    pub fn getCards(&self) -> js_sys::Array{
+    pub fn get_cards(&self) -> js_sys::Array {
         let ret = js_sys::Array::new_with_length(self.cards.len() as u32);
-        for (index,c) in self.cards.iter().enumerate(){
-             ret.set(index as u32, wasm_bindgen::JsValue::from(c.clone()));
+        for (index, c) in self.cards.iter().enumerate() {
+            ret.set(index as u32, wasm_bindgen::JsValue::from(*c));
         }
-       ret
+        ret
     }
 }
 
-
 impl FullCombination {
-    fn new(combination: Combination, cards: Vec<Card>) -> Self {
-        Self { combination, key_range:0,cards }
+    fn new(combination: Combination, key_hand: &str, cards: Vec<Card>) -> Self {
+        Self {
+            combination,
+            key_range_group: 0,
+            key_hand: Box::leak(String::from(key_hand).into_boxed_str()),
+            cards,
+        }
     }
 }
 
@@ -251,8 +279,8 @@ impl TryFrom<i32> for N {
         }
     }
 }
-use serde::{Deserialize,Deserializer, Serialize};
-#[wasm_bindgen]  
+use serde::{Deserialize, Deserializer, Serialize};
+#[wasm_bindgen]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Card {
     pub n: N,
@@ -268,7 +296,11 @@ impl PartialOrd for Card {
         self.n.partial_cmp(&other.n)
     }
 }
- 
+impl fmt::Display for Card {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}{}", self.n, self.m)
+    }
+}
 
 #[wasm_bindgen]
 impl Card {
@@ -276,13 +308,8 @@ impl Card {
     pub fn new(n: N, m: M) -> Self {
         Self { n, m }
     }
-    pub fn get(self)->wasm_bindgen::JsValue {
-        wasm_bindgen::JsValue::from(self)   
-    }
-}
-impl fmt::Display for Card {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}{}", self.n, self.m)
+    pub fn get(self) -> wasm_bindgen::JsValue {
+        wasm_bindgen::JsValue::from(self)
     }
 }
 
@@ -298,7 +325,18 @@ pub struct Hand {
 }
 impl fmt::Display for Hand {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Hand{{ key:{}, cards:{:?} }}", self.key, self.cards)
+        write!(
+            f,
+            "Hand{{ key:{}, cards:{},{},{},{},{},{},{} }}",
+            self.key,
+            self.cards[0],
+            self.cards[1],
+            self.cards[2],
+            self.cards[3],
+            self.cards[4],
+            self.cards[5],
+            self.cards[6]
+        )
     }
 }
 
@@ -334,7 +372,6 @@ impl Hand {
 }
 
 impl Hand {
-
     pub fn find(&mut self) -> Option<FullCombination> {
         self.find_royal_and_staight_flash()
             .or(self.find_four_of_kind())
@@ -697,6 +734,7 @@ impl Hand {
                         7936 if self.check(&[N::A, N::K, N::Q, N::J, N::TEN], m) => {
                             return Some(FullCombination::new(
                                 Combination::RoyalFlush,
+                                self.key,
                                 vec![
                                     Card::new(N::A, m),
                                     Card::new(N::K, m),
@@ -709,6 +747,7 @@ impl Hand {
                         4111 if self.check(&[N::A, N::FIVE, N::FOUR, N::THREE, N::TWO], m) => {
                             return Some(FullCombination::new(
                                 Combination::StraightFlush,
+                                self.key,
                                 vec![
                                     Card::new(N::FIVE, m),
                                     Card::new(N::FOUR, m),
@@ -721,6 +760,7 @@ impl Hand {
                         3968 if self.check(&[N::K, N::Q, N::J, N::TEN, N::NINE], m) => {
                             return Some(FullCombination::new(
                                 Combination::StraightFlush,
+                                self.key,
                                 vec![
                                     Card::new(N::K, m),
                                     Card::new(N::Q, m),
@@ -733,6 +773,7 @@ impl Hand {
                         1984 if self.check(&[N::Q, N::J, N::TEN, N::NINE, N::EIGHT], m) => {
                             return Some(FullCombination::new(
                                 Combination::StraightFlush,
+                                self.key,
                                 vec![
                                     Card::new(N::Q, m),
                                     Card::new(N::J, m),
@@ -745,6 +786,7 @@ impl Hand {
                         992 if self.check(&[N::J, N::TEN, N::NINE, N::EIGHT, N::SEVEN], m) => {
                             return Some(FullCombination::new(
                                 Combination::StraightFlush,
+                                self.key,
                                 vec![
                                     Card::new(N::J, m),
                                     Card::new(N::TEN, m),
@@ -757,6 +799,7 @@ impl Hand {
                         496 if self.check(&[N::TEN, N::NINE, N::EIGHT, N::SEVEN, N::SIX], m) => {
                             return Some(FullCombination::new(
                                 Combination::StraightFlush,
+                                self.key,
                                 vec![
                                     Card::new(N::TEN, m),
                                     Card::new(N::NINE, m),
@@ -769,6 +812,7 @@ impl Hand {
                         248 if self.check(&[N::NINE, N::EIGHT, N::SEVEN, N::SIX, N::FIVE], m) => {
                             return Some(FullCombination::new(
                                 Combination::StraightFlush,
+                                self.key,
                                 vec![
                                     Card::new(N::NINE, m),
                                     Card::new(N::EIGHT, m),
@@ -781,6 +825,7 @@ impl Hand {
                         124 if self.check(&[N::EIGHT, N::SEVEN, N::SIX, N::FIVE, N::FOUR], m) => {
                             return Some(FullCombination::new(
                                 Combination::StraightFlush,
+                                self.key,
                                 vec![
                                     Card::new(N::EIGHT, m),
                                     Card::new(N::SEVEN, m),
@@ -793,6 +838,7 @@ impl Hand {
                         62 if self.check(&[N::SEVEN, N::SIX, N::FIVE, N::FOUR, N::THREE], m) => {
                             return Some(FullCombination::new(
                                 Combination::StraightFlush,
+                                self.key,
                                 vec![
                                     Card::new(N::SEVEN, m),
                                     Card::new(N::SIX, m),
@@ -805,6 +851,7 @@ impl Hand {
                         31 if self.check(&[N::SIX, N::FIVE, N::FOUR, N::THREE, N::TWO], m) => {
                             return Some(FullCombination::new(
                                 Combination::StraightFlush,
+                                self.key,
                                 vec![
                                     Card::new(N::SIX, m),
                                     Card::new(N::FIVE, m),
@@ -839,6 +886,7 @@ impl Hand {
         if res_count.1 == 4 {
             return Some(FullCombination::new(
                 Combination::FourOfKind,
+                self.key,
                 vec![
                     Card::new(res_count.0, M::S),
                     Card::new(res_count.0, M::H),
@@ -899,6 +947,7 @@ impl Hand {
                 if cards_three_of_kind.len() == 5 {
                     return Some(FullCombination::new(
                         Combination::FullHouse,
+                        self.key,
                         cards_three_of_kind,
                     ));
                 }
@@ -908,8 +957,12 @@ impl Hand {
     }
 
     fn find_flash(&mut self) -> Option<FullCombination> {
-        if let Some(prepare_flash) = self.prepare_flash.clone() {
-            return Some(FullCombination::new(Combination::Flush, prepare_flash));
+        if let Some(ref prepare_flash) = self.prepare_flash {
+            return Some(FullCombination::new(
+                Combination::Flush,
+                self.key,
+                prepare_flash.clone(),
+            ));
         }
         let mut m: Option<M> = None;
         let count: i32;
@@ -919,18 +972,31 @@ impl Hand {
             count = self.count_m();
         }
 
-        if count > 10000 && count % 10000 / 1000 > 4 {
-            m = Some(M::C);
+        {
+            let count: String = format!("{:04}", count);
+            for (index, c) in count.chars().enumerate() {
+                if let Some(digit) = c.to_digit(10) {
+                    if digit > 4 {
+                        match index {
+                            0 => {
+                                m = Some(M::C);
+                            }
+                            1 => {
+                                m = Some(M::D);
+                            }
+                            2 => {
+                                m = Some(M::H);
+                            }
+                            3 => {
+                                m = Some(M::S);
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
         }
-        if count > 1000 && count % 1000 / 100 > 4 {
-            m = Some(M::D);
-        }
-        if count > 100 && count % 100 / 10 > 4 {
-            m = Some(M::H);
-        }
-        if count > 10 && count % 10 / 1 > 4 {
-            m = Some(M::S);
-        }
+
         if m.is_none() {
             return None;
         }
@@ -946,7 +1012,7 @@ impl Hand {
 
         if res.len() == 5 {
             self.prepare_flash = Some(res.clone());
-            return Some(FullCombination::new(Combination::Flush, res));
+            return Some(FullCombination::new(Combination::Flush, self.key, res));
         }
         None
     }
@@ -982,6 +1048,7 @@ impl Hand {
                     7936 => {
                         return Some(FullCombination::new(
                             Combination::Straight,
+                            self.key,
                             vec![
                                 self.get_card(N::A),
                                 self.get_card(N::K),
@@ -994,6 +1061,7 @@ impl Hand {
                     4111 => {
                         return Some(FullCombination::new(
                             Combination::Straight,
+                            self.key,
                             vec![
                                 self.get_card(N::FIVE),
                                 self.get_card(N::FOUR),
@@ -1006,6 +1074,7 @@ impl Hand {
                     3968 => {
                         return Some(FullCombination::new(
                             Combination::Straight,
+                            self.key,
                             vec![
                                 self.get_card(N::K),
                                 self.get_card(N::Q),
@@ -1018,6 +1087,7 @@ impl Hand {
                     1984 => {
                         return Some(FullCombination::new(
                             Combination::Straight,
+                            self.key,
                             vec![
                                 self.get_card(N::Q),
                                 self.get_card(N::J),
@@ -1030,6 +1100,7 @@ impl Hand {
                     992 => {
                         return Some(FullCombination::new(
                             Combination::Straight,
+                            self.key,
                             vec![
                                 self.get_card(N::J),
                                 self.get_card(N::TEN),
@@ -1042,6 +1113,7 @@ impl Hand {
                     496 => {
                         return Some(FullCombination::new(
                             Combination::Straight,
+                            self.key,
                             vec![
                                 self.get_card(N::TEN),
                                 self.get_card(N::NINE),
@@ -1054,6 +1126,7 @@ impl Hand {
                     248 => {
                         return Some(FullCombination::new(
                             Combination::Straight,
+                            self.key,
                             vec![
                                 self.get_card(N::NINE),
                                 self.get_card(N::EIGHT),
@@ -1066,6 +1139,7 @@ impl Hand {
                     124 => {
                         return Some(FullCombination::new(
                             Combination::Straight,
+                            self.key,
                             vec![
                                 self.get_card(N::EIGHT),
                                 self.get_card(N::SEVEN),
@@ -1078,6 +1152,7 @@ impl Hand {
                     62 => {
                         return Some(FullCombination::new(
                             Combination::Straight,
+                            self.key,
                             vec![
                                 self.get_card(N::SEVEN),
                                 self.get_card(N::SIX),
@@ -1090,6 +1165,7 @@ impl Hand {
                     31 => {
                         return Some(FullCombination::new(
                             Combination::Straight,
+                            self.key,
                             vec![
                                 self.get_card(N::SIX),
                                 self.get_card(N::FIVE),
@@ -1127,6 +1203,7 @@ impl Hand {
                     if cards_three_of_kind.len() == 5 {
                         return Some(FullCombination::new(
                             Combination::ThreeOfKind,
+                            self.key,
                             cards_three_of_kind,
                         ));
                     }
@@ -1166,7 +1243,11 @@ impl Hand {
                 );
 
                 if cards_two_pair.len() == 5 {
-                    return Some(FullCombination::new(Combination::TwoPairs, cards_two_pair));
+                    return Some(FullCombination::new(
+                        Combination::TwoPairs,
+                        self.key,
+                        cards_two_pair,
+                    ));
                 }
             }
         }
@@ -1202,6 +1283,7 @@ impl Hand {
                 if cards_pair.len() == 2 && high_cards.len() == 3 {
                     return Some(FullCombination::new(
                         Combination::Pair,
+                        self.key,
                         vec![
                             cards_pair[0],
                             cards_pair[1],
@@ -1219,6 +1301,7 @@ impl Hand {
     fn find_high_cards(&self) -> Option<FullCombination> {
         return Some(FullCombination::new(
             Combination::HighCard,
+            self.key,
             vec![
                 self.cards[0],
                 self.cards[1],
@@ -1230,21 +1313,6 @@ impl Hand {
     }
 }
 
-/*
- impl From<JsValue> for Hand {
-    #[inline]
-    fn from(h: JsValue) -> Hand {
-        JsValue::from_str(&s)
-    }
-}
-
-impl  Into<JsValue> for Card {
-    fn into(self) -> Card {
-        Card{n:N::TWO,m:M::D}
-    }
-}
-*/
-
 #[wasm_bindgen(skip)]
 pub struct Menager {
     hands: Vec<Hand>,
@@ -1254,81 +1322,229 @@ pub struct Menager {
 impl Menager {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        Self { hands:vec![] }
+        Self { hands: vec![] }
     }
-    pub fn add(&mut self,hand:Hand){
-       self.hands.push(hand);
+    pub fn add(&mut self, hand: Hand) {
+        self.hands.push(hand);
     }
 
     pub fn calculate_wasm(&mut self) -> Option<js_sys::Array> {
-        let mut map: HashMap<Combination, bool> =
-            HashMap::with_capacity(self.hands.len());
-
         let ret = js_sys::Array::new_with_length(self.hands.len() as u32);
-        let mut last_index:u8 = 0;
-        for (index,hand) in self.hands.iter_mut().enumerate() {
-            let mut full = hand.find().unwrap();
-            
-            if map.contains_key(&full.combination) {
-                full.key_range = last_index;
-                ret.set(index as u32,wasm_bindgen::JsValue::from(full) );
-            } else {
-                last_index = index as u8;
-                full.key_range = last_index;
-                map.insert(full.combination, true);
-                ret.set(index as u32, wasm_bindgen::JsValue::from(full) ); 
+        let mut key_range_group: u8 = 0;
+        let mut prapare: Vec<FullCombination> = Vec::with_capacity(self.hands.len() as usize);
+        for (index, hand) in self.hands.iter_mut().enumerate() {
+            let mut c = hand.find().unwrap();
+            c.key_range_group = key_range_group;
+            prapare.push(c);
+        }
+        prapare.sort_by(|a, b| {
+            let partial = (b.combination).partial_cmp(&(a.combination)).unwrap();
+            if partial == Ordering::Equal {
+                return b.cards.partial_cmp(&a.cards).unwrap();
             }
-        }
-/*
-        let mut result: Vec<Vec<FullCombination>> = vec![];
-        for (key, val) in map.iter() {
-            result.push(val.clone());
-        }
-        result.sort_by(|a, b| (b[0].combination).partial_cmp(&(a[0].combination)).unwrap());
+            partial
+        });
 
-        let ret = js_sys::Array::new_with_length(result.len() as u32);
-        for (index,value) in result.iter().enumerate(){
-           let item = js_sys::Array::new_with_length(value.len() as u32);
-           for (index2,value2) in value.into_iter().enumerate(){
-            item.set(index2 as u32,(self.n as i32).into());
-          }
-          ret.set(index as u32,item);
+        let mut current: FullCombination = prapare.first().unwrap().clone();
+        ret.set(0, wasm_bindgen::JsValue::from(current.clone()));
+        for (index, el) in prapare.iter_mut().skip(1).enumerate() {
+            if &current != el {
+                key_range_group += 1;
+                el.key_range_group = key_range_group;
+            } else {
+                el.key_range_group = key_range_group;
+            }
+            current = el.clone();
+            ret.set((index + 1) as u32, wasm_bindgen::JsValue::from(el.clone()));
         }
-       
-        Some(result)*/
         Some(ret)
-        
     }
 }
- 
+
 impl Menager {
- 
-    pub fn calculate(&mut self) -> Option<Vec<Vec<FullCombination>>> {
-        let mut map: HashMap<Combination, Vec<FullCombination>> =
-            HashMap::with_capacity(self.hands.len());
-        for hand in self.hands.iter_mut() {
-            let full = hand.find().unwrap();
-            if map.contains_key(&full.combination) {
-                if let Some(value) = map.get_mut(&full.combination) {
-                    (*value).push(full);
-                }
-            } else {
-                map.insert(full.combination, vec![full]);
+    pub fn calculate(&mut self) -> Option<Vec<FullCombination>> {
+        let mut key_range_group: u8 = 0;
+        let mut ret: Vec<FullCombination> = Vec::with_capacity(self.hands.len() as usize);
+        for (index, hand) in self.hands.iter_mut().enumerate() {
+            let mut c = hand.find().unwrap();
+            c.key_range_group = key_range_group;
+            ret.push(c);
+        }
+        ret.sort_by(|a, b| {
+            let partial = (b.combination).partial_cmp(&(a.combination)).unwrap();
+            if partial == Ordering::Equal {
+                return b.cards.partial_cmp(&a.cards).unwrap();
             }
+            partial
+        });
+
+        let mut current: FullCombination = ret.first().unwrap().clone();
+        for el in ret.iter_mut().skip(1) {
+            if &current != el {
+                key_range_group += 1;
+                el.key_range_group = key_range_group;
+            } else {
+                el.key_range_group = key_range_group;
+            }
+            current = el.clone();
         }
-        let mut result: Vec<Vec<FullCombination>> = vec![];
-        for (key, val) in map.iter() {
-            result.push(val.clone());
-        }
-        result.sort_by(|a, b| (b[0].combination).partial_cmp(&(a[0].combination)).unwrap());
-        Some(result)
-        
+
+        Some(ret)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn it_manager_range() {
+        let mut manager: Menager = Menager::new();
+        let c1 = Card::new(N::TWO, M::S);
+        let c2 = Card::new(N::TEN, M::C);
+        let c3 = Card::new(N::TEN, M::S);
+        let c4 = Card::new(N::A, M::C);
+        let c5 = Card::new(N::NINE, M::C);
+
+        {
+            let hand = Hand::new(
+                "№1 Ac,10c,10s,9s,9c,5h,2s",
+                Card::new(N::NINE, M::S),
+                Card::new(N::FIVE, M::H),
+                c1,
+                c2,
+                c3,
+                c4,
+                Card::new(N::THREE, M::H),
+            );
+            manager.add(hand);
+        }
+        {
+            let hand = Hand::new(
+                "№2 9s,3d,2s,10c,10s,Ac,9c",
+                Card::new(N::NINE, M::S),
+                Card::new(N::THREE, M::D),
+                c1,
+                c2,
+                c3,
+                c4,
+                c5,
+            );
+            manager.add(hand);
+        }
+        {
+            let hand = Hand::new(
+                "№3 As,3d,2s,10c,10s,Ac,9c",
+                Card::new(N::A, M::S),
+                Card::new(N::THREE, M::D),
+                c1,
+                c2,
+                c3,
+                c4,
+                c5,
+            );
+            manager.add(hand);
+        }
+        {
+            let hand = Hand::new(
+                "№4 3s,5d,2s,10c,10s,Ac,9c",
+                Card::new(N::THREE, M::S),
+                Card::new(N::FIVE, M::D),
+                c1,
+                c2,
+                c3,
+                c4,
+                c5,
+            );
+            manager.add(hand);
+        }
+        {
+            let hand = Hand::new(
+                "№5 Jc,5c,2s,10c,10s,Ac,9c",
+                Card::new(N::J, M::C),
+                Card::new(N::FIVE, M::C),
+                c1,
+                c2,
+                c3,
+                c4,
+                c5,
+            );
+            manager.add(hand);
+        }
+        {
+            let hand = Hand::new(
+                "№6 6c,5c,2s,10c,10s,Ac,9c",
+                Card::new(N::SIX, M::C),
+                Card::new(N::FIVE, M::C),
+                c1,
+                c2,
+                c3,
+                c4,
+                c5,
+            );
+            manager.add(hand);
+        }
+        let res: Vec<FullCombination> = manager.calculate().unwrap();
+
+        assert_eq!(res[0].combination, Combination::Flush);
+        assert_eq!(res[1].combination, Combination::Flush);
+        assert_eq!(res[2].combination, Combination::TwoPairs);
+        assert_eq!(res[3].combination, Combination::TwoPairs);
+        assert_eq!(res[4].combination, Combination::Pair);
+        assert_eq!(res[5].combination, Combination::Pair);
+
+        assert!(res[0].key_range_group == 0);
+        assert!(res[1].key_range_group == 1);
+        assert!(res[2].key_range_group == 2);
+        assert!(res[3].key_range_group == 3);
+        assert!(res[4].key_range_group == 4);
+        assert!(res[5].key_range_group == 4);
+    }
+
+    #[test]
+    fn it_eq_combination() {
+        let mut manager: Menager = Menager::new();
+        let c1 = Card::new(N::TWO, M::S);
+        let c2 = Card::new(N::TEN, M::C);
+        let c3 = Card::new(N::TEN, M::S);
+        let c4 = Card::new(N::A, M::C);
+        let c5 = Card::new(N::NINE, M::C);
+
+        {
+            let hand = Hand::new(
+                "№2 9s,3d,2s,10c,10s,Ac,9c",
+                Card::new(N::NINE, M::S),
+                Card::new(N::THREE, M::D),
+                c1,
+                c2,
+                c3,
+                c4,
+                c5,
+            );
+            manager.add(hand);
+        }
+        {
+            let hand = Hand::new(
+                "№3 As,3d,2s,10c,10s,Ac,9c",
+                Card::new(N::A, M::S),
+                Card::new(N::THREE, M::D),
+                c1,
+                c2,
+                c3,
+                c4,
+                c5,
+            );
+            manager.add(hand);
+        }
+
+        let res: Vec<FullCombination> = manager.calculate().unwrap();
+
+        assert_eq!(res[0].combination, Combination::TwoPairs);
+        assert_eq!(res[1].combination, Combination::TwoPairs);
+        assert_eq!(res[0].combination, res[1].combination);
+        assert!(res[0].key_range_group == 0);
+        assert!(res[1].key_range_group == 1);
+    }
+
     #[test]
     fn it_partiql_eq_combination() {
         let mut hand = Hand::new(
@@ -1379,163 +1595,165 @@ mod tests {
 
     #[test]
     fn it_success_combination_high_card() {
-        let mut hand = Hand::new(
-            "HighCard Kd,Qd,10c,9h,4c",
-            Card::new(N::NINE, M::H),
-            Card::new(N::THREE, M::S),
-            Card::new(N::TWO, M::S),
-            Card::new(N::TEN, M::C),
-            Card::new(N::K, M::D),
-            Card::new(N::Q, M::D),
-            Card::new(N::FOUR, M::C),
-        );
-        let high_card: FullCombination = hand.find().unwrap();
-        assert!(high_card.combination == Combination::HighCard);
+        let c1 = Card::new(N::NINE, M::H);
+        let c2 = Card::new(N::THREE, M::S);
+        let c3 = Card::new(N::TWO, M::S);
+        let c4 = Card::new(N::TEN, M::C);
+        let c5 = Card::new(N::K, M::D);
+        let c6 = Card::new(N::Q, M::D);
+        let c7 = Card::new(N::FOUR, M::C);
+        let mut hand = Hand::new("HighCard Kd,Qd,10c,9h,4c", c1, c2, c3, c4, c5, c6, c7);
+        let flash: FullCombination = hand.find().unwrap();
+        assert_eq!(&[c5, c6, c4, c1, c7], flash.cards.as_slice());
+        assert!(flash.combination == Combination::HighCard);
     }
 
     #[test]
     fn it_success_combination_pair() {
-        let mut hand = Hand::new(
-            "Pair 4h,4c,Kd,Qd,10c",
-            Card::new(N::FOUR, M::H),
-            Card::new(N::THREE, M::S),
-            Card::new(N::TWO, M::S),
-            Card::new(N::TEN, M::C),
-            Card::new(N::K, M::D),
-            Card::new(N::Q, M::D),
-            Card::new(N::FOUR, M::C),
-        );
-        let pair: FullCombination = hand.find().unwrap();
-        assert!(pair.combination == Combination::Pair);
+        let c1 = Card::new(N::FOUR, M::H);
+        let c2 = Card::new(N::THREE, M::S);
+        let c3 = Card::new(N::TWO, M::S);
+        let c4 = Card::new(N::TEN, M::C);
+        let c5 = Card::new(N::K, M::D);
+        let c6 = Card::new(N::Q, M::D);
+        let c7 = Card::new(N::FOUR, M::C);
+        let mut hand = Hand::new("Pair 4h,4c,Kd,Qd,10c", c1, c2, c3, c4, c5, c6, c7);
+        let flash: FullCombination = hand.find().unwrap();
+        assert_eq!(&[c1, c7, c5, c6, c4], flash.cards.as_slice());
+        assert!(flash.combination == Combination::Pair);
     }
 
     #[test]
     fn it_success_combination_two_pair() {
-        let mut hand = Hand::new(
-            "TwoPairs Ks,Kd,4h,4c,Qd",
-            Card::new(N::FOUR, M::H),
-            Card::new(N::THREE, M::S),
-            Card::new(N::K, M::S),
-            Card::new(N::TEN, M::C),
-            Card::new(N::K, M::D),
-            Card::new(N::Q, M::D),
-            Card::new(N::FOUR, M::C),
-        );
-        let two_pair: FullCombination = hand.find().unwrap();
-        assert!(two_pair.combination == Combination::TwoPairs);
+        let c1 = Card::new(N::FOUR, M::H);
+        let c2 = Card::new(N::THREE, M::S);
+        let c3 = Card::new(N::K, M::S);
+        let c4 = Card::new(N::TEN, M::C);
+        let c5 = Card::new(N::K, M::D);
+        let c6 = Card::new(N::Q, M::D);
+        let c7 = Card::new(N::FOUR, M::C);
+        let mut hand = Hand::new("TwoPairs Ks,Kd,4h,4c,Qd", c1, c2, c3, c4, c5, c6, c7);
+        let flash: FullCombination = hand.find().unwrap();
+        assert_eq!(&[c3, c5, c1, c7, c6], flash.cards.as_slice());
+        assert!(flash.combination == Combination::TwoPairs);
     }
 
     #[test]
     fn it_success_combination_three_of_kind() {
-        let mut hand = Hand::new(
-            "ThreeOfKind 4h,4s,4c,Kd,Qd",
-            Card::new(N::FOUR, M::H),
-            Card::new(N::THREE, M::S),
-            Card::new(N::FOUR, M::S),
-            Card::new(N::TEN, M::C),
-            Card::new(N::K, M::D),
-            Card::new(N::Q, M::D),
-            Card::new(N::FOUR, M::C),
-        );
-        let three_of_kind: FullCombination = hand.find().unwrap();
-        assert!(three_of_kind.combination == Combination::ThreeOfKind);
+        let c1 = Card::new(N::FOUR, M::H);
+        let c2 = Card::new(N::THREE, M::S);
+        let c3 = Card::new(N::FOUR, M::S);
+        let c4 = Card::new(N::TEN, M::C);
+        let c5 = Card::new(N::K, M::D);
+        let c6 = Card::new(N::Q, M::D);
+        let c7 = Card::new(N::FOUR, M::C);
+        let mut hand = Hand::new("ThreeOfKind 4h,4s,4c,Kd,Qd", c1, c2, c3, c4, c5, c6, c7);
+        let flash: FullCombination = hand.find().unwrap();
+        assert_eq!(&[c1, c3, c7, c5, c6], flash.cards.as_slice());
+        assert!(flash.combination == Combination::ThreeOfKind);
     }
 
     #[test]
     fn it_success_combination_straight() {
-        let mut hand = Hand::new(
-            "Straight Kd,Qd,Js,10c,9h",
-            Card::new(N::NINE, M::H),
-            Card::new(N::THREE, M::S),
-            Card::new(N::J, M::S),
-            Card::new(N::TEN, M::C),
-            Card::new(N::K, M::D),
-            Card::new(N::Q, M::D),
-            Card::new(N::FOUR, M::C),
-        );
-        let straight: FullCombination = hand.find().unwrap();
-        assert!(straight.combination == Combination::Straight);
+        let c1 = Card::new(N::NINE, M::H);
+        let c2 = Card::new(N::THREE, M::S);
+        let c3 = Card::new(N::J, M::S);
+        let c4 = Card::new(N::TEN, M::C);
+        let c5 = Card::new(N::K, M::D);
+        let c6 = Card::new(N::Q, M::D);
+        let c7 = Card::new(N::FOUR, M::C);
+        let mut hand = Hand::new("Straight Kd,Qd,Js,10c,9h", c1, c2, c3, c4, c5, c6, c7);
+        let flash: FullCombination = hand.find().unwrap();
+        assert_eq!(&[c5, c6, c3, c4, c1], flash.cards.as_slice());
+        assert!(flash.combination == Combination::Straight);
     }
 
     #[test]
     fn it_success_combination_flash() {
-        let mut hand = Hand::new(
-            "Flush Kd,Qd,9d,4d,3d",
-            Card::new(N::NINE, M::D),
-            Card::new(N::THREE, M::D),
-            Card::new(N::J, M::S),
-            Card::new(N::TEN, M::C),
-            Card::new(N::K, M::D),
-            Card::new(N::Q, M::D),
-            Card::new(N::FOUR, M::D),
-        );
+        {
+            let c1 = Card::new(N::SIX, M::S);
+            let c2 = Card::new(N::FIVE, M::C);
+            let c3 = Card::new(N::TWO, M::S);
+            let c4 = Card::new(N::TEN, M::C);
+            let c5 = Card::new(N::TEN, M::S);
+            let c6 = Card::new(N::A, M::S);
+            let c7 = Card::new(N::NINE, M::S);
+            let mut hand = Hand::new("№6 6s,5c,2s,10c,10s,As,9s", c1, c2, c3, c4, c5, c6, c7);
+            let flash: FullCombination = hand.find().unwrap();
+            assert_eq!(&[c6, c5, c7, c1, c3], flash.cards.as_slice());
+            assert!(flash.combination == Combination::Flush);
+        }
+
+        let c1 = Card::new(N::SIX, M::H);
+        let c2 = Card::new(N::FIVE, M::H);
+        let c3 = Card::new(N::TWO, M::S);
+        let c4 = Card::new(N::TEN, M::H);
+        let c5 = Card::new(N::TEN, M::S);
+        let c6 = Card::new(N::A, M::H);
+        let c7 = Card::new(N::NINE, M::H);
+        let mut hand = Hand::new("№6 6h,5h,2s,10h,10s,Ah,9h", c1, c2, c3, c4, c5, c6, c7);
         let flash: FullCombination = hand.find().unwrap();
-        println!("{}", flash);
+        assert_eq!(&[c6, c4, c7, c1, c2], flash.cards.as_slice());
         assert!(flash.combination == Combination::Flush);
     }
 
     #[test]
     fn it_success_combination_full_house() {
-        let mut hand = Hand::new(
-            "FullHouse 3d,3s,3c,Js,Jc",
-            Card::new(N::THREE, M::D),
-            Card::new(N::THREE, M::S),
-            Card::new(N::J, M::S),
-            Card::new(N::J, M::C),
-            Card::new(N::K, M::D),
-            Card::new(N::Q, M::D),
-            Card::new(N::THREE, M::C),
-        );
-        let full_house: FullCombination = hand.find().unwrap();
-        assert!(full_house.combination == Combination::FullHouse);
+        let c1 = Card::new(N::THREE, M::D);
+        let c2 = Card::new(N::THREE, M::S);
+        let c3 = Card::new(N::J, M::S);
+        let c4 = Card::new(N::J, M::C);
+        let c5 = Card::new(N::K, M::D);
+        let c6 = Card::new(N::Q, M::D);
+        let c7 = Card::new(N::THREE, M::C);
+        let mut hand = Hand::new("FullHouse 3d,3s,3c,Js,Jc", c1, c2, c3, c4, c5, c6, c7);
+        let flash: FullCombination = hand.find().unwrap();
+        assert_eq!(&[c1, c2, c7, c3, c4], flash.cards.as_slice());
+        assert!(flash.combination == Combination::FullHouse);
     }
 
     #[test]
     fn it_success_combination_four_of_kind() {
-        let mut hand = Hand::new(
-            "FourOfKind 3s,3h,3d,3c,Qd",
-            Card::new(N::THREE, M::D),
-            Card::new(N::THREE, M::S),
-            Card::new(N::J, M::S),
-            Card::new(N::J, M::C),
-            Card::new(N::THREE, M::H),
-            Card::new(N::Q, M::D),
-            Card::new(N::THREE, M::C),
-        );
-        let four_of_kind: FullCombination = hand.find().unwrap();
-        println!("{}", four_of_kind);
-        assert!(four_of_kind.combination == Combination::FourOfKind);
+        let c1 = Card::new(N::THREE, M::D);
+        let c2 = Card::new(N::THREE, M::S);
+        let c3 = Card::new(N::J, M::S);
+        let c4 = Card::new(N::J, M::C);
+        let c5 = Card::new(N::THREE, M::H);
+        let c6 = Card::new(N::Q, M::D);
+        let c7 = Card::new(N::THREE, M::C);
+        let mut hand = Hand::new("FourOfKind 3s,3h,3d,3c,Qd", c1, c2, c3, c4, c5, c6, c7);
+        let flash: FullCombination = hand.find().unwrap();
+        assert_eq!(&[c2, c5, c1, c7, c6], flash.cards.as_slice());
+        assert!(flash.combination == Combination::FourOfKind);
     }
 
     #[test]
     fn it_success_combination_straight_flush() {
-        let mut hand = Hand::new(
-            "StraightFlush Kd,Qd,Jd,10d,9d",
-            Card::new(N::TEN, M::D),
-            Card::new(N::THREE, M::S),
-            Card::new(N::J, M::D),
-            Card::new(N::J, M::C),
-            Card::new(N::K, M::D),
-            Card::new(N::Q, M::D),
-            Card::new(N::NINE, M::D),
-        );
-        let straight_flush: FullCombination = hand.find().unwrap();
-        assert!(straight_flush.combination == Combination::StraightFlush);
+        let c1 = Card::new(N::TEN, M::D);
+        let c2 = Card::new(N::THREE, M::S);
+        let c3 = Card::new(N::J, M::D);
+        let c4 = Card::new(N::J, M::C);
+        let c5 = Card::new(N::K, M::D);
+        let c6 = Card::new(N::Q, M::D);
+        let c7 = Card::new(N::NINE, M::D);
+        let mut hand = Hand::new("StraightFlush Kd,Qd,Jd,10d,9d", c1, c2, c3, c4, c5, c6, c7);
+        let flash: FullCombination = hand.find().unwrap();
+        assert_eq!(&[c5, c6, c3, c1, c7], flash.cards.as_slice());
+        assert!(flash.combination == Combination::StraightFlush);
     }
 
     #[test]
     fn it_success_combination_royal_flush() {
-        let mut hand = Hand::new(
-            "RoyalFlush Ad,Kd,Qd,Jd,10d",
-            Card::new(N::TEN, M::D),
-            Card::new(N::THREE, M::S),
-            Card::new(N::J, M::D),
-            Card::new(N::J, M::C),
-            Card::new(N::K, M::D),
-            Card::new(N::Q, M::D),
-            Card::new(N::A, M::D),
-        );
-        let royal_flush: FullCombination = hand.find().unwrap();
-        assert!(royal_flush.combination == Combination::RoyalFlush);
+        let c1 = Card::new(N::TEN, M::D);
+        let c2 = Card::new(N::THREE, M::S);
+        let c3 = Card::new(N::J, M::D);
+        let c4 = Card::new(N::J, M::C);
+        let c5 = Card::new(N::K, M::D);
+        let c6 = Card::new(N::Q, M::D);
+        let c7 = Card::new(N::A, M::D);
+        let mut hand = Hand::new("RoyalFlush Ad,Kd,Qd,Jd,10d", c1, c2, c3, c4, c5, c6, c7);
+        let flash: FullCombination = hand.find().unwrap();
+        assert_eq!(&[c7, c5, c6, c3, c1], flash.cards.as_slice());
+        assert!(flash.combination == Combination::RoyalFlush);
     }
 }
