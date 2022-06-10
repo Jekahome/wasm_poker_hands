@@ -218,15 +218,15 @@ export class FullCombination {
     }
     /**
     */
-    get key_range() {
-        const ret = wasm.__wbg_get_fullcombination_key_range(this.ptr);
+    get key_range_group() {
+        const ret = wasm.__wbg_get_fullcombination_key_range_group(this.ptr);
         return ret;
     }
     /**
     * @param {number} arg0
     */
-    set key_range(arg0) {
-        wasm.__wbg_set_fullcombination_key_range(this.ptr, arg0);
+    set key_range_group(arg0) {
+        wasm.__wbg_set_fullcombination_key_range_group(this.ptr, arg0);
     }
     /**
     * @returns {Array<any>}

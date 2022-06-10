@@ -72,7 +72,7 @@ export class FullCombination {
   combination: number;
 /**
 */
-  key_range: number;
+  key_range_group: number;
 }
 /**
 */

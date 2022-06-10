@@ -99,12 +99,12 @@ impl fmt::Display for Combination {
     }
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(skip)]
 #[derive(Debug, Clone)]
 pub struct FullCombination {
     pub combination: Combination,
     pub key_range_group: u8,
-    pub key_hand: &'static str,
+    key_hand: &'static str,
     cards: Vec<Card>,
 }
 impl PartialEq<FullCombination> for FullCombination {
