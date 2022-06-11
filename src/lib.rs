@@ -324,6 +324,9 @@ impl Card {
     pub fn get(self) -> wasm_bindgen::JsValue {
         wasm_bindgen::JsValue::from(self)
     }
+    pub fn show_card(&self)->String{
+        format!("{}",self)
+    }
 }
 
 #[wasm_bindgen(skip)]
@@ -381,6 +384,9 @@ impl Hand {
             panic!("Cards not correct");
         }
         h
+    }
+    pub fn show_hand(&self)->String{
+        format!("{}",self)
     }
 }
 
