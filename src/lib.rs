@@ -154,6 +154,16 @@ impl FullCombination {
         }
         ret
     }
+    pub fn show_cards(&self) -> js_sys::Array {
+        let ret = js_sys::Array::new_with_length(self.cards.len() as u32);
+        for (index, c) in self.cards.iter().enumerate() {
+            ret.set(index as u32, wasm_bindgen::JsValue::from(format!("{}",*c)));
+        }
+        ret
+    }
+    pub fn show_combination(&self)->String{
+        format!("{}",self.combination)
+    }
 }
 
 impl FullCombination {

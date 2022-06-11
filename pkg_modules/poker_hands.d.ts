@@ -68,6 +68,14 @@ export class FullCombination {
 */
   get_cards(): Array<any>;
 /**
+* @returns {Array<any>}
+*/
+  show_cards(): Array<any>;
+/**
+* @returns {string}
+*/
+  show_combination(): string;
+/**
 */
   combination: number;
 /**

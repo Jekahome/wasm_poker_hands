@@ -7,6 +7,8 @@ export function __wbg_set_fullcombination_combination(a: number, b: number): voi
 export function __wbg_get_fullcombination_key_range_group(a: number): number;
 export function __wbg_set_fullcombination_key_range_group(a: number, b: number): void;
 export function fullcombination_get_cards(a: number): number;
+export function fullcombination_show_cards(a: number): number;
+export function fullcombination_show_combination(a: number, b: number): void;
 export function __wbg_card_free(a: number): void;
 export function __wbg_get_card_n(a: number): number;
 export function __wbg_set_card_n(a: number, b: number): void;
@@ -20,5 +22,7 @@ export function __wbg_menager_free(a: number): void;
 export function menager_new(): number;
 export function menager_add(a: number, b: number): void;
 export function menager_calculate_wasm(a: number): number;
+export function __wbindgen_add_to_stack_pointer(a: number): number;
+export function __wbindgen_free(a: number, b: number): void;
 export function __wbindgen_malloc(a: number): number;
 export function __wbindgen_realloc(a: number, b: number, c: number): number;
