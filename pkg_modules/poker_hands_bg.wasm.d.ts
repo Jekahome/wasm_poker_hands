@@ -9,6 +9,7 @@ export function __wbg_set_fullcombination_key_range_group(a: number, b: number):
 export function fullcombination_get_cards(a: number): number;
 export function fullcombination_show_cards(a: number): number;
 export function fullcombination_show_combination(a: number, b: number): void;
+export function fullcombination_get_key_hand(a: number, b: number): void;
 export function __wbg_card_free(a: number): void;
 export function __wbg_get_card_n(a: number): number;
 export function __wbg_set_card_n(a: number, b: number): void;

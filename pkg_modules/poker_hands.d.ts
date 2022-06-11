@@ -76,6 +76,10 @@ export class FullCombination {
 */
   show_combination(): string;
 /**
+* @returns {string}
+*/
+  get_key_hand(): string;
+/**
 */
   combination: number;
 /**

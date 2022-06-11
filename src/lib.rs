@@ -164,6 +164,9 @@ impl FullCombination {
     pub fn show_combination(&self)->String{
         format!("{}",self.combination)
     }
+    pub fn get_key_hand(&self)->String{
+        format!("{}",self.key_hand)
+    }
 }
 
 impl FullCombination {
