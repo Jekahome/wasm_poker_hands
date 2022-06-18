@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
+#![allow(dead_code)]
+#![allow(unused_macros)]
 
 mod utils;
 use js_sys::{Promise, Uint8ClampedArray, WebAssembly};
@@ -1412,9 +1414,298 @@ impl Menager {
     }
 }
 
+ 
+
+#[wasm_bindgen]
+pub struct Pot{
+    pot:i32,
+    players:Vec<(i32,i32)>,
+    win_queue_group:Vec<Vec<i32>>
+} 
+ 
+#[wasm_bindgen]
+impl Pot {
+    #[wasm_bindgen(constructor)]
+    pub fn new(pot:i32)->Self{
+        Pot{pot,players:vec![],win_queue_group:vec![]}
+    }
+    pub fn add_player(&mut self,id:i32,bet:i32){
+        self.players.push((id,bet));
+    }
+    pub fn add_next_group_win(&mut self,win:Vec<i32>){
+        self.win_queue_group.push(win);
+    }
+    pub fn calculate_wasm(mut self) -> Option< js_sys::Array >{
+        if !self.check(){return None; }
+        let mut result:Vec<(i32,i32)> = vec![];
+        let mut pot:i32 = self.pot;
+        for w in self.win_queue_group.iter(){
+            if pot > 0  && self.players.len() > 0{
+                let ids_group = w.iter().map(|v|*v).collect::<Vec<i32>>();
+                let group_sum_bet:i32 = self.players.iter().filter(|u|{ ids_group.contains(&u.0) }).map(|u|u.1).sum::<i32>();
+              
+                let group_max_pot:i32 =  w.iter()
+                   .map(|id|{ 
+                       (id,self.players.iter().find_map(|u|{ if &u.0==id{Some(u.1)}else{None} }))
+                     })
+                   .map(|(id,bet_pot)|{ self.sum_bet(bet_pot.unwrap(),ids_group.clone()).unwrap()})
+                   .max().unwrap(); 
+                   
+                let mut total_chank:i32 = 0;
+                let mut res:Vec<(i32,i32)> = self.players.iter()
+                    .filter(|u|{ ids_group.contains(&u.0) })
+                    .map(|u|{ 
+                      let bank = (group_max_pot as f32/(group_sum_bet as f32/u.1 as f32) ) as f32;
+                      total_chank+=bank as i32;
+                      pot-=bank as i32;
+                      (u.0,bank as i32 + u.1) 
+                    }).collect();
+                    
+                    let last:i32 = group_max_pot - total_chank;
+                    if last > 0 {
+                        res[0].1+=last;
+                        pot-=last;
+                    }
+                    for i in res.into_iter(){
+                        result.push(i.clone());
+                    }
+               
+                    self.players = self.players.iter()
+                            .filter(|u| !ids_group.contains(&u.0) && (u.1-group_sum_bet) > 0 )
+                            .map(|u|{ (u.0,u.1-group_sum_bet)  })
+                            .collect::<Vec<(i32,i32)>>();
+                
+                 pot-=group_sum_bet;
+            }
+        }
+        if pot > 0{
+            let chank = pot/result.len() as i32;
+            for i in result.iter_mut(){
+                i.1+=chank;
+            }
+        }
+        let wins = js_sys::Array::new_with_length(result.len() as u32);
+        
+        for w in result.into_iter(){
+            wins.set(w.0 as u32, wasm_bindgen::JsValue::from(w.1) );
+        }
+        return Some(wins); 
+    }
+}
+
+impl Pot{
+    fn sum_bet(&self,bet_pot:i32,id_group:Vec<i32>)->Option<i32>{
+        let mut sum = 0;
+        for i in self.players.iter(){
+            if !id_group.contains(&i.0){
+                sum+= if bet_pot >= i.1{i.1}else{bet_pot};
+            }
+        }
+        Some(sum)   
+    }
+    fn check(&self)->bool{
+      {
+        if self.pot < self.players.iter().map(|p|{p.1}).sum(){
+            return false;
+        } 
+      }
+ 
+       {
+        let mut find = false;
+        for p in self.players.iter(){
+            find = false;
+            for w in self.win_queue_group.iter(){
+                for u in w.iter(){
+                    if u == &p.0{
+                        find=true;
+                    }
+                }
+            }
+            if !find{
+                return false;
+            }
+        }
+       }
+
+       let max = self.players.iter().map(|u|u.1).max().unwrap();
+       if self.players.iter().filter(|u|u.1==max).map(|_|1).count() < 2 {
+           return false;
+       }
+
+        true
+    }
+    pub fn calculate(mut self) -> Option< Vec<(i32,i32)> >{
+        if !self.check(){return None; }
+        let mut result:Vec<(i32,i32)> = vec![];
+        let mut pot:i32 = self.pot;
+        for w in self.win_queue_group.iter(){
+            if pot > 0  && self.players.len() > 0{
+                let ids_group = w.iter().map(|v|*v).collect::<Vec<i32>>();
+                let group_sum_bet:i32 = self.players.iter().filter(|u|{ ids_group.contains(&u.0) }).map(|u|u.1).sum::<i32>();
+              
+                let group_max_pot:i32 =  w.iter()
+                   .map(|id|{ 
+                       (id,self.players.iter().find_map(|u|{ if &u.0==id{Some(u.1)}else{None} }))
+                     })
+                   .map(|(id,bet_pot)|{ self.sum_bet(bet_pot.unwrap(),ids_group.clone()).unwrap()})
+                   .max().unwrap(); 
+                   
+                let mut total_chank:i32 = 0;
+                let mut res:Vec<(i32,i32)> = self.players.iter()
+                    .filter(|u|{ ids_group.contains(&u.0) })
+                    .map(|u|{ 
+                      let bank = (group_max_pot as f32/(group_sum_bet as f32/u.1 as f32) ) as f32;
+                      total_chank+=bank as i32;
+                      pot-=bank as i32;
+                      (u.0,bank as i32 + u.1) 
+                    }).collect();
+                    
+                    let last:i32 = group_max_pot - total_chank;
+                    if last > 0 {
+                        res[0].1+=last;
+                        pot-=last;
+                    }
+                    for i in res.into_iter(){
+                        result.push(i.clone());
+                    }
+               
+                    self.players = self.players.iter()
+                            .filter(|u| !ids_group.contains(&u.0) && (u.1-group_sum_bet) > 0 )
+                            .map(|u|{ (u.0,u.1-group_sum_bet)  })
+                            .collect::<Vec<(i32,i32)>>();
+                
+                 pot-=group_sum_bet;
+            }
+        }
+        if pot > 0{
+            let chank = pot/result.len() as i32;
+            for i in result.iter_mut(){
+                i.1+=chank;
+            }
+        }
+         
+        return Some(result); 
+    }
+}
+
+
+// cargo test it_split_pot -- --nocapture
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn it_pot_construct_fail(){
+        let mut pot:Pot = Pot::new(2200);
+        pot.add_player(1,100); 
+        pot.add_player(2,400);
+        pot.add_player(3,600);
+        pot.add_player(4,600);
+        pot.add_player(5,600);
+        pot.add_next_group_win(vec![1,2,3]);
+        pot.add_next_group_win(vec![4]);
+        pot.add_next_group_win(vec![5]);
+        assert_eq!(None,pot.calculate());
+     
+        let mut pot:Pot = Pot::new(2300);
+        pot.add_player(1,100); 
+        pot.add_player(2,400);
+        pot.add_player(3,600);
+        pot.add_player(4,600);
+        pot.add_player(5,600);
+        pot.add_next_group_win(vec![1,2,3]);
+        pot.add_next_group_win(vec![4]);
+        assert_eq!(None,pot.calculate());
+
+        let mut pot:Pot = Pot::new(2300);
+        pot.add_player(1,100); 
+        pot.add_player(2,400);
+        pot.add_player(3,600);
+        pot.add_player(4,600);
+        pot.add_player(5,700);
+        pot.add_next_group_win(vec![1,2,3]);
+        pot.add_next_group_win(vec![4]);
+        pot.add_next_group_win(vec![5]);
+        assert_eq!(None,pot.calculate());
+    }
+
+    #[test]
+    fn it_split_pot(){
+        let mut pot:Pot = Pot::new(2300);
+        pot.add_player(1,100); 
+        pot.add_player(2,400);
+        pot.add_player(3,600);
+        pot.add_player(4,600);
+        pot.add_player(5,600);
+        pot.add_next_group_win(vec![1,2,3]);
+        pot.add_next_group_win(vec![4]);
+        pot.add_next_group_win(vec![5]);
+       let res = pot.calculate().unwrap();
+        assert_eq!(res[..],[(1, 210), (2, 836), (3, 1254)]);
+    }
+
+    #[test]
+    fn it_big_pot(){
+        let mut pot:Pot = Pot::new(2700);
+        pot.add_player(1,100); 
+        pot.add_player(2,400);
+        pot.add_player(3,600);
+        pot.add_player(4,600);
+        pot.add_player(5,600);
+        pot.add_next_group_win(vec![1,2,3]);
+        pot.add_next_group_win(vec![4]);
+        pot.add_next_group_win(vec![5]);
+       let res = pot.calculate().unwrap();
+       assert_eq!(res[..],[(1, 343), (2, 969), (3, 1387)]);
+    }
+
+    #[test]
+    fn it_queue_pot(){
+        let mut pot:Pot = Pot::new(2300);
+        pot.add_player(1,100); 
+        pot.add_player(2,400);
+        pot.add_player(3,600);
+        pot.add_player(4,600);
+        pot.add_player(5,600);
+        pot.add_next_group_win(vec![1]);
+        pot.add_next_group_win(vec![2]);
+        pot.add_next_group_win(vec![3]);
+        pot.add_next_group_win(vec![4]);
+        pot.add_next_group_win(vec![5]);
+        let res = pot.calculate().unwrap();
+        assert_eq!(res[..], [(1,500),(2,1200),(3,600)]);
+       
+
+        let mut pot:Pot = Pot::new(2300);
+        pot.add_player(1,100); 
+        pot.add_player(2,400);
+        pot.add_player(3,600);
+        pot.add_player(4,600);
+        pot.add_player(5,600);
+        pot.add_next_group_win(vec![2]);
+        pot.add_next_group_win(vec![3]);
+        pot.add_next_group_win(vec![1]);
+        pot.add_next_group_win(vec![4]);
+        pot.add_next_group_win(vec![5]);
+        let res = pot.calculate().unwrap();
+        assert_eq!(res[..],  [(2, 1700), (3, 600)]);
+
+        let mut pot:Pot = Pot::new(2300);
+        pot.add_player(1,100); 
+        pot.add_player(2,400);
+        pot.add_player(3,600);
+        pot.add_player(4,600);
+        pot.add_player(5,600);
+        pot.add_next_group_win(vec![3]);
+        pot.add_next_group_win(vec![2]);
+        pot.add_next_group_win(vec![1]);
+        pot.add_next_group_win(vec![4]);
+        pot.add_next_group_win(vec![5]);
+        let res = pot.calculate().unwrap();
+        assert_eq!(res[..], [(3, 2300)]);
+    }    
+
     #[test]
     fn it_manager_range() {
         let mut manager: Menager = Menager::new();

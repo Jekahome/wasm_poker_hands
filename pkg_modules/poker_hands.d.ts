@@ -53,6 +53,10 @@ export class Card {
 */
   get(): any;
 /**
+* @returns {string}
+*/
+  show_card(): string;
+/**
 */
   m: number;
 /**
@@ -101,6 +105,10 @@ export class Hand {
 * @param {Card} c7
 */
   constructor(key: string, c1: Card, c2: Card, c3: Card, c4: Card, c5: Card, c6: Card, c7: Card);
+/**
+* @returns {string}
+*/
+  show_hand(): string;
 }
 /**
 */

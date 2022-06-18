@@ -189,6 +189,21 @@ export class Card {
         const ret = wasm.card_get(ptr);
         return takeObject(ret);
     }
+    /**
+    * @returns {string}
+    */
+    show_card() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.card_show_card(retptr, this.ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_free(r0, r1);
+        }
+    }
 }
 /**
 */
@@ -339,6 +354,21 @@ export class Hand {
         c7.ptr = 0;
         const ret = wasm.hand_new(ptr0, len0, ptr1, ptr2, ptr3, ptr4, ptr5, ptr6, ptr7);
         return Hand.__wrap(ret);
+    }
+    /**
+    * @returns {string}
+    */
+    show_hand() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.hand_show_hand(retptr, this.ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_free(r0, r1);
+        }
     }
 }
 /**
