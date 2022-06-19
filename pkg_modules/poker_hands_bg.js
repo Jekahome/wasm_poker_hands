@@ -1,5 +1,25 @@
 import * as wasm from './poker_hands_bg.wasm';
 
+const heap = new Array(32).fill(undefined);
+
+heap.push(undefined, null, true, false);
+
+function getObject(idx) { return heap[idx]; }
+
+let heap_next = heap.length;
+
+function dropObject(idx) {
+    if (idx < 36) return;
+    heap[idx] = heap_next;
+    heap_next = idx;
+}
+
+function takeObject(idx) {
+    const ret = getObject(idx);
+    dropObject(idx);
+    return ret;
+}
+
 const lTextDecoder = typeof TextDecoder === 'undefined' ? (0, module.require)('util').TextDecoder : TextDecoder;
 
 let cachedTextDecoder = new lTextDecoder('utf-8', { ignoreBOM: true, fatal: true });
@@ -18,12 +38,6 @@ function getStringFromWasm0(ptr, len) {
     return cachedTextDecoder.decode(getUint8Memory0().subarray(ptr, ptr + len));
 }
 
-const heap = new Array(32).fill(undefined);
-
-heap.push(undefined, null, true, false);
-
-let heap_next = heap.length;
-
 function addHeapObject(obj) {
     if (heap_next === heap.length) heap.push(heap.length + 1);
     const idx = heap_next;
@@ -31,20 +45,6 @@ function addHeapObject(obj) {
 
     heap[idx] = obj;
     return idx;
-}
-
-function getObject(idx) { return heap[idx]; }
-
-function dropObject(idx) {
-    if (idx < 36) return;
-    heap[idx] = heap_next;
-    heap_next = idx;
-}
-
-function takeObject(idx) {
-    const ret = getObject(idx);
-    dropObject(idx);
-    return ret;
 }
 
 let cachegetInt32Memory0 = null;
@@ -417,17 +417,43 @@ export class Menager {
     /**
     * @param {Hand} hand
     */
-    add(hand) {
+    add_hand(hand) {
         _assertClass(hand, Hand);
         var ptr0 = hand.ptr;
         hand.ptr = 0;
-        wasm.menager_add(this.ptr, ptr0);
+        wasm.menager_add_hand(this.ptr, ptr0);
+    }
+    /**
+    * @param {Pot} pot
+    * @returns {boolean}
+    */
+    add_pot(pot) {
+        _assertClass(pot, Pot);
+        var ptr0 = pot.ptr;
+        pot.ptr = 0;
+        const ret = wasm.menager_add_pot(this.ptr, ptr0);
+        return ret !== 0;
     }
     /**
     * @returns {Array<any> | undefined}
     */
     calculate_wasm() {
         const ret = wasm.menager_calculate_wasm(this.ptr);
+        return takeObject(ret);
+    }
+    /**
+    * @returns {Array<any> | undefined}
+    */
+    get_win_combinations() {
+        const ptr = this.__destroy_into_raw();
+        const ret = wasm.menager_get_win_combinations(ptr);
+        return takeObject(ret);
+    }
+    /**
+    * @returns {Array<any> | undefined}
+    */
+    calculate_pot() {
+        const ret = wasm.menager_calculate_pot(this.ptr);
         return takeObject(ret);
     }
 }
@@ -468,22 +494,72 @@ export class Pot {
         wasm.pot_add_player(this.ptr, id, bet);
     }
     /**
+    * @param {Int32Array} win_js
+    */
+    add_next_group_win(win_js) {
+        wasm.pot_add_next_group_win(this.ptr, addHeapObject(win_js));
+    }
+    /**
     * @param {Int32Array} win
     */
-    add_next_group_win(win) {
+    add_next_group_win_vec(win) {
         const ptr0 = passArray32ToWasm0(win, wasm.__wbindgen_malloc);
         const len0 = WASM_VECTOR_LEN;
-        wasm.pot_add_next_group_win(this.ptr, ptr0, len0);
+        wasm.pot_add_next_group_win_vec(this.ptr, ptr0, len0);
     }
     /**
     * @returns {Array<any> | undefined}
     */
-    calculate_wasm() {
+    calculate() {
         const ptr = this.__destroy_into_raw();
-        const ret = wasm.pot_calculate_wasm(ptr);
+        const ret = wasm.pot_calculate(ptr);
         return takeObject(ret);
     }
 }
+/**
+*/
+export class Win {
+
+    __destroy_into_raw() {
+        const ptr = this.ptr;
+        this.ptr = 0;
+
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_win_free(ptr);
+    }
+    /**
+    */
+    get id() {
+        const ret = wasm.__wbg_get_win_id(this.ptr);
+        return ret;
+    }
+    /**
+    * @param {number} arg0
+    */
+    set id(arg0) {
+        wasm.__wbg_set_win_id(this.ptr, arg0);
+    }
+    /**
+    */
+    get pot() {
+        const ret = wasm.__wbg_get_win_pot(this.ptr);
+        return ret;
+    }
+    /**
+    * @param {number} arg0
+    */
+    set pot(arg0) {
+        wasm.__wbg_set_win_pot(this.ptr, arg0);
+    }
+}
+
+export function __wbindgen_object_drop_ref(arg0) {
+    takeObject(arg0);
+};
 
 export function __wbg_card_new(arg0) {
     const ret = Card.__wrap(arg0);
@@ -500,8 +576,17 @@ export function __wbg_fullcombination_new(arg0) {
     return addHeapObject(ret);
 };
 
-export function __wbindgen_number_new(arg0) {
-    const ret = arg0;
+export function __wbindgen_object_clone_ref(arg0) {
+    const ret = getObject(arg0);
+    return addHeapObject(ret);
+};
+
+export function __wbg_log_437df00577fb3353(arg0, arg1) {
+    console.log(getStringFromWasm0(arg0, arg1));
+};
+
+export function __wbindgen_json_parse(arg0, arg1) {
+    const ret = JSON.parse(getStringFromWasm0(arg0, arg1));
     return addHeapObject(ret);
 };
 
@@ -514,7 +599,31 @@ export function __wbg_set_561aac756158708c(arg0, arg1, arg2) {
     getObject(arg0)[arg1 >>> 0] = takeObject(arg2);
 };
 
+export function __wbg_buffer_7af23f65f6c64548(arg0) {
+    const ret = getObject(arg0).buffer;
+    return addHeapObject(ret);
+};
+
+export function __wbg_new_7fb6d86dfb4bf8c1(arg0) {
+    const ret = new Int32Array(getObject(arg0));
+    return addHeapObject(ret);
+};
+
+export function __wbg_set_b9a0125477d1982b(arg0, arg1, arg2) {
+    getObject(arg0).set(getObject(arg1), arg2 >>> 0);
+};
+
+export function __wbg_length_b9cb8998b6b1d4a8(arg0) {
+    const ret = getObject(arg0).length;
+    return ret;
+};
+
 export function __wbindgen_throw(arg0, arg1) {
     throw new Error(getStringFromWasm0(arg0, arg1));
+};
+
+export function __wbindgen_memory() {
+    const ret = wasm.memory;
+    return addHeapObject(ret);
 };
 

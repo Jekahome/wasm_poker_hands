@@ -1339,18 +1339,26 @@ impl Hand {
 #[wasm_bindgen(skip)]
 pub struct Menager {
     hands: Vec<Hand>,
+    pot: Option<Pot>,
+    win_combinations:Option<js_sys::Array>
 }
 
 #[wasm_bindgen]
 impl Menager {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        Self { hands: vec![] }
+        Self { hands: vec![],pot:None,win_combinations:None }
     }
-    pub fn add(&mut self, hand: Hand) {
+    pub fn add_hand(&mut self, hand: Hand) {
         self.hands.push(hand);
     }
-
+    pub fn add_pot(&mut self,pot:Pot)->bool{
+        if self.pot.is_none(){
+            self.pot = Some(pot);
+            return true;
+        }
+        false
+    }
     pub fn calculate_wasm(&mut self) -> Option<js_sys::Array> {
         let ret = js_sys::Array::new_with_length(self.hands.len() as u32);
         let mut key_range_group: u8 = 0;
@@ -1381,6 +1389,37 @@ impl Menager {
             ret.set((index + 1) as u32, wasm_bindgen::JsValue::from(el.clone()));
         }
         Some(ret)
+    }
+    fn convert_win_combination_vec_to_js_array(&mut self,win_combinations:&Vec<FullCombination>){
+          let ret = js_sys::Array::new_with_length(win_combinations.len() as u32);
+          for (index, el) in win_combinations.iter().enumerate(){
+             ret.set(index as u32, wasm_bindgen::JsValue::from(el.clone()));
+          }
+          self.win_combinations = Some(ret);
+    }
+    pub fn get_win_combinations(self)->Option<js_sys::Array>{
+        self.win_combinations.as_ref().map(|c|c.clone())
+    }
+    pub fn calculate_pot(&mut self) -> Option<js_sys::Array> {
+        let mut pot = self.pot.as_ref().map(|p|p.clone()).unwrap();
+        let win_combinations = self.calculate().unwrap();
+        self.convert_win_combination_vec_to_js_array(&win_combinations);
+
+        let mut group:Vec<i32> = vec![];
+        group.push(win_combinations[0].get_key_hand().parse::<i32>().unwrap());
+        let mut key_range_group = win_combinations[0].key_range_group;
+        for w in win_combinations.iter().skip(1){
+            if key_range_group != w.key_range_group{
+                pot.add_next_group_win_vec(group.clone());
+                key_range_group = w.key_range_group;
+                group = vec![];
+                group.push(w.get_key_hand().parse::<i32>().unwrap() );
+            }
+        }
+        if group.len() > 0 {
+            pot.add_next_group_win_vec(group.clone());
+        }
+        pot.calculate()     
     }
 }
 
@@ -1429,6 +1468,7 @@ impl Win {
     }
 }
 
+#[derive(Debug,Clone)]
 #[wasm_bindgen]
 pub struct Pot {
     pot: i32,
@@ -1452,9 +1492,12 @@ impl Pot {
     pub fn add_next_group_win(&mut self, win_js: js_sys::Int32Array) {
         self.win_queue_group.push(win_js.to_vec());
     }
-
+    pub fn add_next_group_win_vec(&mut self, win: Vec<i32>) {
+        self.win_queue_group.push(win);
+    }
     pub fn calculate(mut self) -> Option<js_sys::Array> {
         if !self.check() {
+            console_log!("{}",format!("Fail validation params\n {:#?}",self));
             return None;
         }
         let mut result: Vec<(i32, i32)> = vec![];
@@ -1553,7 +1596,9 @@ impl Pot {
     }
     fn check(&self) -> bool {
         {
-            if self.pot < self.players.iter().map(|p| p.1).sum() {
+            let current_pot = self.players.iter().map(|p| p.1).sum();
+            if self.pot < current_pot {
+                console_log!("{}",format!("The total pot {} is less than the players bet {}",self.pot,current_pot));
                 return false;
             }
         }
@@ -1570,6 +1615,7 @@ impl Pot {
                     }
                 }
                 if is_find == false {
+                    console_log!("{}",format!("Not a complete list of players per pot"));
                     return false;
                 }
             }
@@ -1584,6 +1630,7 @@ impl Pot {
             .count()
             < 2
         {
+            console_log!("{}",format!("Unmatched bet {}",max));
             return false;
         }
 
@@ -1617,7 +1664,7 @@ mod tests {
                 c4,
                 Card::new(N::THREE, M::H),
             );
-            manager.add(hand);
+            manager.add_hand(hand);
         }
         {
             let hand = Hand::new(
@@ -1630,7 +1677,7 @@ mod tests {
                 c4,
                 c5,
             );
-            manager.add(hand);
+            manager.add_hand(hand);
         }
         {
             let hand = Hand::new(
@@ -1643,7 +1690,7 @@ mod tests {
                 c4,
                 c5,
             );
-            manager.add(hand);
+            manager.add_hand(hand);
         }
         {
             let hand = Hand::new(
@@ -1656,7 +1703,7 @@ mod tests {
                 c4,
                 c5,
             );
-            manager.add(hand);
+            manager.add_hand(hand);
         }
         {
             let hand = Hand::new(
@@ -1669,7 +1716,7 @@ mod tests {
                 c4,
                 c5,
             );
-            manager.add(hand);
+            manager.add_hand(hand);
         }
         {
             let hand = Hand::new(
@@ -1682,7 +1729,7 @@ mod tests {
                 c4,
                 c5,
             );
-            manager.add(hand);
+            manager.add_hand(hand);
         }
         let res: Vec<FullCombination> = manager.calculate().unwrap();
 
@@ -1721,7 +1768,7 @@ mod tests {
                 c4,
                 c5,
             );
-            manager.add(hand);
+            manager.add_hand(hand);
         }
         {
             let hand = Hand::new(
@@ -1734,7 +1781,7 @@ mod tests {
                 c4,
                 c5,
             );
-            manager.add(hand);
+            manager.add_hand(hand);
         }
 
         let res: Vec<FullCombination> = manager.calculate().unwrap();

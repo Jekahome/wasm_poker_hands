@@ -120,11 +120,24 @@ export class Menager {
 /**
 * @param {Hand} hand
 */
-  add(hand: Hand): void;
+  add_hand(hand: Hand): void;
+/**
+* @param {Pot} pot
+* @returns {boolean}
+*/
+  add_pot(pot: Pot): boolean;
 /**
 * @returns {Array<any> | undefined}
 */
   calculate_wasm(): Array<any> | undefined;
+/**
+* @returns {Array<any> | undefined}
+*/
+  get_win_combinations(): Array<any> | undefined;
+/**
+* @returns {Array<any> | undefined}
+*/
+  calculate_pot(): Array<any> | undefined;
 }
 /**
 */
@@ -140,11 +153,26 @@ export class Pot {
 */
   add_player(id: number, bet: number): void;
 /**
+* @param {Int32Array} win_js
+*/
+  add_next_group_win(win_js: Int32Array): void;
+/**
 * @param {Int32Array} win
 */
-  add_next_group_win(win: Int32Array): void;
+  add_next_group_win_vec(win: Int32Array): void;
 /**
 * @returns {Array<any> | undefined}
 */
-  calculate_wasm(): Array<any> | undefined;
+  calculate(): Array<any> | undefined;
+}
+/**
+*/
+export class Win {
+  free(): void;
+/**
+*/
+  id: number;
+/**
+*/
+  pot: number;
 }
