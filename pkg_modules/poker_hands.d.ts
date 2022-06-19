@@ -126,3 +126,25 @@ export class Menager {
 */
   calculate_wasm(): Array<any> | undefined;
 }
+/**
+*/
+export class Pot {
+  free(): void;
+/**
+* @param {number} pot
+*/
+  constructor(pot: number);
+/**
+* @param {number} id
+* @param {number} bet
+*/
+  add_player(id: number, bet: number): void;
+/**
+* @param {Int32Array} win
+*/
+  add_next_group_win(win: Int32Array): void;
+/**
+* @returns {Array<any> | undefined}
+*/
+  calculate_wasm(): Array<any> | undefined;
+}

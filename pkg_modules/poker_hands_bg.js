@@ -118,6 +118,21 @@ function _assertClass(instance, klass) {
     }
     return instance.ptr;
 }
+
+let cachegetUint32Memory0 = null;
+function getUint32Memory0() {
+    if (cachegetUint32Memory0 === null || cachegetUint32Memory0.buffer !== wasm.memory.buffer) {
+        cachegetUint32Memory0 = new Uint32Array(wasm.memory.buffer);
+    }
+    return cachegetUint32Memory0;
+}
+
+function passArray32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4);
+    getUint32Memory0().set(arg, ptr / 4);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
 /**
 */
 export const Combination = Object.freeze({ RoyalFlush:9,"9":"RoyalFlush",StraightFlush:8,"8":"StraightFlush",FourOfKind:7,"7":"FourOfKind",FullHouse:6,"6":"FullHouse",Flush:5,"5":"Flush",Straight:4,"4":"Straight",ThreeOfKind:3,"3":"ThreeOfKind",TwoPairs:2,"2":"TwoPairs",Pair:1,"1":"Pair",HighCard:0,"0":"HighCard", });
@@ -416,6 +431,59 @@ export class Menager {
         return takeObject(ret);
     }
 }
+/**
+*/
+export class Pot {
+
+    static __wrap(ptr) {
+        const obj = Object.create(Pot.prototype);
+        obj.ptr = ptr;
+
+        return obj;
+    }
+
+    __destroy_into_raw() {
+        const ptr = this.ptr;
+        this.ptr = 0;
+
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_pot_free(ptr);
+    }
+    /**
+    * @param {number} pot
+    */
+    constructor(pot) {
+        const ret = wasm.pot_new(pot);
+        return Pot.__wrap(ret);
+    }
+    /**
+    * @param {number} id
+    * @param {number} bet
+    */
+    add_player(id, bet) {
+        wasm.pot_add_player(this.ptr, id, bet);
+    }
+    /**
+    * @param {Int32Array} win
+    */
+    add_next_group_win(win) {
+        const ptr0 = passArray32ToWasm0(win, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.pot_add_next_group_win(this.ptr, ptr0, len0);
+    }
+    /**
+    * @returns {Array<any> | undefined}
+    */
+    calculate_wasm() {
+        const ptr = this.__destroy_into_raw();
+        const ret = wasm.pot_calculate_wasm(ptr);
+        return takeObject(ret);
+    }
+}
 
 export function __wbg_card_new(arg0) {
     const ret = Card.__wrap(arg0);
@@ -429,6 +497,11 @@ export function __wbindgen_string_new(arg0, arg1) {
 
 export function __wbg_fullcombination_new(arg0) {
     const ret = FullCombination.__wrap(arg0);
+    return addHeapObject(ret);
+};
+
+export function __wbindgen_number_new(arg0) {
+    const ret = arg0;
     return addHeapObject(ret);
 };
 
