@@ -1353,7 +1353,7 @@ impl Menager {
     pub fn add_hand(&mut self, hand: Hand) {
         self.hands.push(hand);
     }
-    fn build_total(&mut self) -> Vec<Total>{
+    fn build_total(&mut self) -> Vec<Total> {
         // Total
         let mut totals: Vec<Total> = self.prepare_calculate();
         // console_log!("totals={}",format!("{:#?}",totals));
@@ -1389,20 +1389,18 @@ impl Menager {
         totals = totals.into_iter().filter(|pl| pl.win_pot > 0).collect();
         totals
     }
+    
     pub fn calculate(mut self) -> Option<js_sys::Array> {
         // Total
         let totals: Vec<Total> = self.build_total();
 
         let ret = js_sys::Array::new_with_length(totals.len() as u32);
         for (index, el) in totals.into_iter().enumerate() {
-            ret.set(
-                index as u32,
-                wasm_bindgen::JsValue::from(el),
-            );
+            ret.set(index as u32, wasm_bindgen::JsValue::from(el));
         }
         Some(ret)
     }
-    // #[cfg(test)] TODO:not work
+     
     pub fn calculate_test(mut self) -> Option<js_sys::Array> {
         // Total
         let totals: Vec<Total> = self.build_total();
@@ -1627,8 +1625,7 @@ impl Pot {
 mod tests {
     use super::*;
 
-
-// cargo test it_partiql_eq_combination -- --nocapture
+    // cargo test it_partiql_eq_combination -- --nocapture
     #[test]
     fn it_partiql_eq_combination() {
         let mut hand = Hand::new(
@@ -1689,7 +1686,17 @@ mod tests {
         let c5 = Card::new(N::K, M::D);
         let c6 = Card::new(N::Q, M::D);
         let c7 = Card::new(N::FOUR, M::C);
-        let mut hand = Hand::new("HighCard Kd,Qd,10c,9h,4c".to_owned(),1, c1, c2, c3, c4, c5, c6, c7);
+        let mut hand = Hand::new(
+            "HighCard Kd,Qd,10c,9h,4c".to_owned(),
+            1,
+            c1,
+            c2,
+            c3,
+            c4,
+            c5,
+            c6,
+            c7,
+        );
         let flash: Total = hand.find().unwrap();
         assert_eq!(&[c5, c6, c4, c1, c7], flash.cards.as_slice());
         assert!(flash.combination == Combination::HighCard);
@@ -1704,7 +1711,17 @@ mod tests {
         let c5 = Card::new(N::K, M::D);
         let c6 = Card::new(N::Q, M::D);
         let c7 = Card::new(N::FOUR, M::C);
-        let mut hand = Hand::new("Pair 4h,4c,Kd,Qd,10c".to_owned(),1, c1, c2, c3, c4, c5, c6, c7);
+        let mut hand = Hand::new(
+            "Pair 4h,4c,Kd,Qd,10c".to_owned(),
+            1,
+            c1,
+            c2,
+            c3,
+            c4,
+            c5,
+            c6,
+            c7,
+        );
         let flash: Total = hand.find().unwrap();
         assert_eq!(&[c1, c7, c5, c6, c4], flash.cards.as_slice());
         assert!(flash.combination == Combination::Pair);
@@ -1719,7 +1736,17 @@ mod tests {
         let c5 = Card::new(N::K, M::D);
         let c6 = Card::new(N::Q, M::D);
         let c7 = Card::new(N::FOUR, M::C);
-        let mut hand = Hand::new("TwoPairs Ks,Kd,4h,4c,Qd".to_owned(),1, c1, c2, c3, c4, c5, c6, c7);
+        let mut hand = Hand::new(
+            "TwoPairs Ks,Kd,4h,4c,Qd".to_owned(),
+            1,
+            c1,
+            c2,
+            c3,
+            c4,
+            c5,
+            c6,
+            c7,
+        );
         let flash: Total = hand.find().unwrap();
         assert_eq!(&[c3, c5, c1, c7, c6], flash.cards.as_slice());
         assert!(flash.combination == Combination::TwoPairs);
@@ -1734,7 +1761,17 @@ mod tests {
         let c5 = Card::new(N::K, M::D);
         let c6 = Card::new(N::Q, M::D);
         let c7 = Card::new(N::FOUR, M::C);
-        let mut hand = Hand::new("ThreeOfKind 4h,4s,4c,Kd,Qd".to_owned(),1, c1, c2, c3, c4, c5, c6, c7);
+        let mut hand = Hand::new(
+            "ThreeOfKind 4h,4s,4c,Kd,Qd".to_owned(),
+            1,
+            c1,
+            c2,
+            c3,
+            c4,
+            c5,
+            c6,
+            c7,
+        );
         let flash: Total = hand.find().unwrap();
         assert_eq!(&[c1, c3, c7, c5, c6], flash.cards.as_slice());
         assert!(flash.combination == Combination::ThreeOfKind);
@@ -1749,7 +1786,17 @@ mod tests {
         let c5 = Card::new(N::K, M::D);
         let c6 = Card::new(N::Q, M::D);
         let c7 = Card::new(N::FOUR, M::C);
-        let mut hand = Hand::new("Straight Kd,Qd,Js,10c,9h".to_owned(),1, c1, c2, c3, c4, c5, c6, c7);
+        let mut hand = Hand::new(
+            "Straight Kd,Qd,Js,10c,9h".to_owned(),
+            1,
+            c1,
+            c2,
+            c3,
+            c4,
+            c5,
+            c6,
+            c7,
+        );
         let flash: Total = hand.find().unwrap();
         assert_eq!(&[c5, c6, c3, c4, c1], flash.cards.as_slice());
         assert!(flash.combination == Combination::Straight);
@@ -1765,7 +1812,17 @@ mod tests {
             let c5 = Card::new(N::TEN, M::S);
             let c6 = Card::new(N::A, M::S);
             let c7 = Card::new(N::NINE, M::S);
-            let mut hand = Hand::new("№6 6s,5c,2s,10c,10s,As,9s".to_owned(),1, c1, c2, c3, c4, c5, c6, c7);
+            let mut hand = Hand::new(
+                "№6 6s,5c,2s,10c,10s,As,9s".to_owned(),
+                1,
+                c1,
+                c2,
+                c3,
+                c4,
+                c5,
+                c6,
+                c7,
+            );
             let flash: Total = hand.find().unwrap();
             assert_eq!(&[c6, c5, c7, c1, c3], flash.cards.as_slice());
             assert!(flash.combination == Combination::Flush);
@@ -1778,7 +1835,17 @@ mod tests {
         let c5 = Card::new(N::TEN, M::S);
         let c6 = Card::new(N::A, M::H);
         let c7 = Card::new(N::NINE, M::H);
-        let mut hand = Hand::new("№6 6h,5h,2s,10h,10s,Ah,9h".to_owned(),1, c1, c2, c3, c4, c5, c6, c7);
+        let mut hand = Hand::new(
+            "№6 6h,5h,2s,10h,10s,Ah,9h".to_owned(),
+            1,
+            c1,
+            c2,
+            c3,
+            c4,
+            c5,
+            c6,
+            c7,
+        );
         let flash: Total = hand.find().unwrap();
         assert_eq!(&[c6, c4, c7, c1, c2], flash.cards.as_slice());
         assert!(flash.combination == Combination::Flush);
@@ -1793,7 +1860,17 @@ mod tests {
         let c5 = Card::new(N::K, M::D);
         let c6 = Card::new(N::Q, M::D);
         let c7 = Card::new(N::THREE, M::C);
-        let mut hand = Hand::new("FullHouse 3d,3s,3c,Js,Jc".to_owned(),1, c1, c2, c3, c4, c5, c6, c7);
+        let mut hand = Hand::new(
+            "FullHouse 3d,3s,3c,Js,Jc".to_owned(),
+            1,
+            c1,
+            c2,
+            c3,
+            c4,
+            c5,
+            c6,
+            c7,
+        );
         let flash: Total = hand.find().unwrap();
         assert_eq!(&[c1, c2, c7, c3, c4], flash.cards.as_slice());
         assert!(flash.combination == Combination::FullHouse);
@@ -1808,7 +1885,17 @@ mod tests {
         let c5 = Card::new(N::THREE, M::H);
         let c6 = Card::new(N::Q, M::D);
         let c7 = Card::new(N::THREE, M::C);
-        let mut hand = Hand::new("FourOfKind 3s,3h,3d,3c,Qd".to_owned(),1, c1, c2, c3, c4, c5, c6, c7);
+        let mut hand = Hand::new(
+            "FourOfKind 3s,3h,3d,3c,Qd".to_owned(),
+            1,
+            c1,
+            c2,
+            c3,
+            c4,
+            c5,
+            c6,
+            c7,
+        );
         let flash: Total = hand.find().unwrap();
         assert_eq!(&[c2, c5, c1, c7, c6], flash.cards.as_slice());
         assert!(flash.combination == Combination::FourOfKind);
@@ -1823,7 +1910,17 @@ mod tests {
         let c5 = Card::new(N::K, M::D);
         let c6 = Card::new(N::Q, M::D);
         let c7 = Card::new(N::NINE, M::D);
-        let mut hand = Hand::new("StraightFlush Kd,Qd,Jd,10d,9d".to_owned(),1, c1, c2, c3, c4, c5, c6, c7);
+        let mut hand = Hand::new(
+            "StraightFlush Kd,Qd,Jd,10d,9d".to_owned(),
+            1,
+            c1,
+            c2,
+            c3,
+            c4,
+            c5,
+            c6,
+            c7,
+        );
         let flash: Total = hand.find().unwrap();
         assert_eq!(&[c5, c6, c3, c1, c7], flash.cards.as_slice());
         assert!(flash.combination == Combination::StraightFlush);
@@ -1838,7 +1935,17 @@ mod tests {
         let c5 = Card::new(N::K, M::D);
         let c6 = Card::new(N::Q, M::D);
         let c7 = Card::new(N::A, M::D);
-        let mut hand = Hand::new("RoyalFlush Ad,Kd,Qd,Jd,10d".to_owned(),1, c1, c2, c3, c4, c5, c6, c7);
+        let mut hand = Hand::new(
+            "RoyalFlush Ad,Kd,Qd,Jd,10d".to_owned(),
+            1,
+            c1,
+            c2,
+            c3,
+            c4,
+            c5,
+            c6,
+            c7,
+        );
         let flash: Total = hand.find().unwrap();
         assert_eq!(&[c7, c5, c6, c3, c1], flash.cards.as_slice());
         assert!(flash.combination == Combination::RoyalFlush);
