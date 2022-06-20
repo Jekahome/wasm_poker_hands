@@ -100,6 +100,10 @@ export class Menager {
 * @returns {Array<any> | undefined}
 */
   calculate(): Array<any> | undefined;
+/**
+* @returns {Array<any> | undefined}
+*/
+  calculate_test(): Array<any> | undefined;
 }
 /**
 */

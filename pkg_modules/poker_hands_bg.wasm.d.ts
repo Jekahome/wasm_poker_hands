@@ -26,6 +26,7 @@ export function __wbg_menager_free(a: number): void;
 export function menager_new(a: number): number;
 export function menager_add_hand(a: number, b: number): void;
 export function menager_calculate(a: number): number;
+export function menager_calculate_test(a: number): number;
 export function __wbg_pot_free(a: number): void;
 export function pot_new(a: number): number;
 export function __wbindgen_add_to_stack_pointer(a: number): number;

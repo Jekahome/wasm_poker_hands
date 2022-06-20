@@ -1353,7 +1353,7 @@ impl Menager {
     pub fn add_hand(&mut self, hand: Hand) {
         self.hands.push(hand);
     }
-    pub fn calculate(mut self) -> Option<js_sys::Array> {
+    fn build_total(&mut self) -> Vec<Total>{
         // Total
         let mut totals: Vec<Total> = self.prepare_calculate();
         // console_log!("totals={}",format!("{:#?}",totals));
@@ -1377,7 +1377,7 @@ impl Menager {
         for player_hand in self.hands.iter() {
             pot.add_player(&player_hand.player_id, player_hand.total_bet);
         }
-        let pot_calculate: Vec<(String, i32)> = pot.calculate()?;
+        let pot_calculate: Vec<(String, i32)> = pot.calculate().unwrap();
         for player_win in pot_calculate.iter() {
             for total_win in totals.iter_mut() {
                 if total_win.player_id == player_win.0 {
@@ -1387,6 +1387,25 @@ impl Menager {
             }
         }
         totals = totals.into_iter().filter(|pl| pl.win_pot > 0).collect();
+        totals
+    }
+    pub fn calculate(mut self) -> Option<js_sys::Array> {
+        // Total
+        let totals: Vec<Total> = self.build_total();
+
+        let ret = js_sys::Array::new_with_length(totals.len() as u32);
+        for (index, el) in totals.into_iter().enumerate() {
+            ret.set(
+                index as u32,
+                wasm_bindgen::JsValue::from(el),
+            );
+        }
+        Some(ret)
+    }
+    // #[cfg(test)] TODO:not work
+    pub fn calculate_test(mut self) -> Option<js_sys::Array> {
+        // Total
+        let totals: Vec<Total> = self.build_total();
 
         let ret = js_sys::Array::new_with_length(totals.len() as u32);
         for (index, el) in totals.into_iter().enumerate() {

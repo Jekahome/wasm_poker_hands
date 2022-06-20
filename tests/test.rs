@@ -85,10 +85,10 @@ fn it_manager_range() {
         manager.add_hand(hand);
     }
 
-    let totals: js_sys::Array = manager.calculate().unwrap();
+    let totals: js_sys::Array = manager.calculate_test().unwrap();
     assert!(totals.length() == 3);
     let iterator = totals.values();
-   
+
     let first:Total = serde_wasm_bindgen::from_value(iterator.next().unwrap().value()).unwrap();
     assert_eq!(first.combination, Combination::Straight);
     assert_eq!(first.key_range_group, 0u8);

@@ -327,6 +327,14 @@ export class Menager {
         const ret = wasm.menager_calculate(ptr);
         return takeObject(ret);
     }
+    /**
+    * @returns {Array<any> | undefined}
+    */
+    calculate_test() {
+        const ptr = this.__destroy_into_raw();
+        const ret = wasm.menager_calculate_test(ptr);
+        return takeObject(ret);
+    }
 }
 /**
 */
@@ -361,6 +369,13 @@ export class Pot {
 /**
 */
 export class Total {
+
+    static __wrap(ptr) {
+        const obj = Object.create(Total.prototype);
+        obj.ptr = ptr;
+
+        return obj;
+    }
 
     __destroy_into_raw() {
         const ptr = this.ptr;
@@ -461,6 +476,11 @@ export function __wbg_card_new(arg0) {
 
 export function __wbindgen_string_new(arg0, arg1) {
     const ret = getStringFromWasm0(arg0, arg1);
+    return addHeapObject(ret);
+};
+
+export function __wbg_total_new(arg0) {
+    const ret = Total.__wrap(arg0);
     return addHeapObject(ret);
 };
 
