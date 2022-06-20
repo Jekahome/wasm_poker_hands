@@ -1,25 +1,5 @@
 import * as wasm from './poker_hands_bg.wasm';
 
-const heap = new Array(32).fill(undefined);
-
-heap.push(undefined, null, true, false);
-
-function getObject(idx) { return heap[idx]; }
-
-let heap_next = heap.length;
-
-function dropObject(idx) {
-    if (idx < 36) return;
-    heap[idx] = heap_next;
-    heap_next = idx;
-}
-
-function takeObject(idx) {
-    const ret = getObject(idx);
-    dropObject(idx);
-    return ret;
-}
-
 const lTextDecoder = typeof TextDecoder === 'undefined' ? (0, module.require)('util').TextDecoder : TextDecoder;
 
 let cachedTextDecoder = new lTextDecoder('utf-8', { ignoreBOM: true, fatal: true });
@@ -38,6 +18,12 @@ function getStringFromWasm0(ptr, len) {
     return cachedTextDecoder.decode(getUint8Memory0().subarray(ptr, ptr + len));
 }
 
+const heap = new Array(32).fill(undefined);
+
+heap.push(undefined, null, true, false);
+
+let heap_next = heap.length;
+
 function addHeapObject(obj) {
     if (heap_next === heap.length) heap.push(heap.length + 1);
     const idx = heap_next;
@@ -45,6 +31,20 @@ function addHeapObject(obj) {
 
     heap[idx] = obj;
     return idx;
+}
+
+function getObject(idx) { return heap[idx]; }
+
+function dropObject(idx) {
+    if (idx < 36) return;
+    heap[idx] = heap_next;
+    heap_next = idx;
+}
+
+function takeObject(idx) {
+    const ret = getObject(idx);
+    dropObject(idx);
+    return ret;
 }
 
 let cachegetInt32Memory0 = null;
@@ -117,21 +117,6 @@ function _assertClass(instance, klass) {
         throw new Error(`expected instance of ${klass.name}`);
     }
     return instance.ptr;
-}
-
-let cachegetUint32Memory0 = null;
-function getUint32Memory0() {
-    if (cachegetUint32Memory0 === null || cachegetUint32Memory0.buffer !== wasm.memory.buffer) {
-        cachegetUint32Memory0 = new Uint32Array(wasm.memory.buffer);
-    }
-    return cachegetUint32Memory0;
-}
-
-function passArray32ToWasm0(arg, malloc) {
-    const ptr = malloc(arg.length * 4);
-    getUint32Memory0().set(arg, ptr / 4);
-    WASM_VECTOR_LEN = arg.length;
-    return ptr;
 }
 /**
 */
@@ -222,97 +207,6 @@ export class Card {
 }
 /**
 */
-export class FullCombination {
-
-    static __wrap(ptr) {
-        const obj = Object.create(FullCombination.prototype);
-        obj.ptr = ptr;
-
-        return obj;
-    }
-
-    __destroy_into_raw() {
-        const ptr = this.ptr;
-        this.ptr = 0;
-
-        return ptr;
-    }
-
-    free() {
-        const ptr = this.__destroy_into_raw();
-        wasm.__wbg_fullcombination_free(ptr);
-    }
-    /**
-    */
-    get combination() {
-        const ret = wasm.__wbg_get_fullcombination_combination(this.ptr);
-        return ret >>> 0;
-    }
-    /**
-    * @param {number} arg0
-    */
-    set combination(arg0) {
-        wasm.__wbg_set_fullcombination_combination(this.ptr, arg0);
-    }
-    /**
-    */
-    get key_range_group() {
-        const ret = wasm.__wbg_get_fullcombination_key_range_group(this.ptr);
-        return ret;
-    }
-    /**
-    * @param {number} arg0
-    */
-    set key_range_group(arg0) {
-        wasm.__wbg_set_fullcombination_key_range_group(this.ptr, arg0);
-    }
-    /**
-    * @returns {Array<any>}
-    */
-    get_cards() {
-        const ret = wasm.fullcombination_get_cards(this.ptr);
-        return takeObject(ret);
-    }
-    /**
-    * @returns {Array<any>}
-    */
-    show_cards() {
-        const ret = wasm.fullcombination_show_cards(this.ptr);
-        return takeObject(ret);
-    }
-    /**
-    * @returns {string}
-    */
-    show_combination() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.fullcombination_show_combination(retptr, this.ptr);
-            var r0 = getInt32Memory0()[retptr / 4 + 0];
-            var r1 = getInt32Memory0()[retptr / 4 + 1];
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_free(r0, r1);
-        }
-    }
-    /**
-    * @returns {string}
-    */
-    get_key_hand() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.fullcombination_get_key_hand(retptr, this.ptr);
-            var r0 = getInt32Memory0()[retptr / 4 + 0];
-            var r1 = getInt32Memory0()[retptr / 4 + 1];
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_free(r0, r1);
-        }
-    }
-}
-/**
-*/
 export class Hand {
 
     static __wrap(ptr) {
@@ -334,7 +228,8 @@ export class Hand {
         wasm.__wbg_hand_free(ptr);
     }
     /**
-    * @param {string} key
+    * @param {string} player_id
+    * @param {number} total_bet
     * @param {Card} c1
     * @param {Card} c2
     * @param {Card} c3
@@ -343,8 +238,8 @@ export class Hand {
     * @param {Card} c6
     * @param {Card} c7
     */
-    constructor(key, c1, c2, c3, c4, c5, c6, c7) {
-        const ptr0 = passStringToWasm0(key, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    constructor(player_id, total_bet, c1, c2, c3, c4, c5, c6, c7) {
+        const ptr0 = passStringToWasm0(player_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         _assertClass(c1, Card);
         var ptr1 = c1.ptr;
@@ -367,7 +262,7 @@ export class Hand {
         _assertClass(c7, Card);
         var ptr7 = c7.ptr;
         c7.ptr = 0;
-        const ret = wasm.hand_new(ptr0, len0, ptr1, ptr2, ptr3, ptr4, ptr5, ptr6, ptr7);
+        const ret = wasm.hand_new(ptr0, len0, total_bet, ptr1, ptr2, ptr3, ptr4, ptr5, ptr6, ptr7);
         return Hand.__wrap(ret);
     }
     /**
@@ -409,9 +304,10 @@ export class Menager {
         wasm.__wbg_menager_free(ptr);
     }
     /**
+    * @param {number} pot
     */
-    constructor() {
-        const ret = wasm.menager_new();
+    constructor(pot) {
+        const ret = wasm.menager_new(pot);
         return Menager.__wrap(ret);
     }
     /**
@@ -424,36 +320,11 @@ export class Menager {
         wasm.menager_add_hand(this.ptr, ptr0);
     }
     /**
-    * @param {Pot} pot
-    * @returns {boolean}
-    */
-    add_pot(pot) {
-        _assertClass(pot, Pot);
-        var ptr0 = pot.ptr;
-        pot.ptr = 0;
-        const ret = wasm.menager_add_pot(this.ptr, ptr0);
-        return ret !== 0;
-    }
-    /**
     * @returns {Array<any> | undefined}
     */
-    calculate_wasm() {
-        const ret = wasm.menager_calculate_wasm(this.ptr);
-        return takeObject(ret);
-    }
-    /**
-    * @returns {Array<any> | undefined}
-    */
-    get_win_combinations() {
+    calculate() {
         const ptr = this.__destroy_into_raw();
-        const ret = wasm.menager_get_win_combinations(ptr);
-        return takeObject(ret);
-    }
-    /**
-    * @returns {Array<any> | undefined}
-    */
-    calculate_pot() {
-        const ret = wasm.menager_calculate_pot(this.ptr);
+        const ret = wasm.menager_calculate(ptr);
         return takeObject(ret);
     }
 }
@@ -486,39 +357,10 @@ export class Pot {
         const ret = wasm.pot_new(pot);
         return Pot.__wrap(ret);
     }
-    /**
-    * @param {number} id
-    * @param {number} bet
-    */
-    add_player(id, bet) {
-        wasm.pot_add_player(this.ptr, id, bet);
-    }
-    /**
-    * @param {Int32Array} win_js
-    */
-    add_next_group_win(win_js) {
-        wasm.pot_add_next_group_win(this.ptr, addHeapObject(win_js));
-    }
-    /**
-    * @param {Int32Array} win
-    */
-    add_next_group_win_vec(win) {
-        const ptr0 = passArray32ToWasm0(win, wasm.__wbindgen_malloc);
-        const len0 = WASM_VECTOR_LEN;
-        wasm.pot_add_next_group_win_vec(this.ptr, ptr0, len0);
-    }
-    /**
-    * @returns {Array<any> | undefined}
-    */
-    calculate() {
-        const ptr = this.__destroy_into_raw();
-        const ret = wasm.pot_calculate(ptr);
-        return takeObject(ret);
-    }
 }
 /**
 */
-export class Win {
+export class Total {
 
     __destroy_into_raw() {
         const ptr = this.ptr;
@@ -529,36 +371,87 @@ export class Win {
 
     free() {
         const ptr = this.__destroy_into_raw();
-        wasm.__wbg_win_free(ptr);
+        wasm.__wbg_total_free(ptr);
     }
     /**
     */
-    get id() {
-        const ret = wasm.__wbg_get_win_id(this.ptr);
+    get combination() {
+        const ret = wasm.__wbg_get_total_combination(this.ptr);
+        return ret >>> 0;
+    }
+    /**
+    * @param {number} arg0
+    */
+    set combination(arg0) {
+        wasm.__wbg_set_total_combination(this.ptr, arg0);
+    }
+    /**
+    */
+    get key_range_group() {
+        const ret = wasm.__wbg_get_total_key_range_group(this.ptr);
         return ret;
     }
     /**
     * @param {number} arg0
     */
-    set id(arg0) {
-        wasm.__wbg_set_win_id(this.ptr, arg0);
+    set key_range_group(arg0) {
+        wasm.__wbg_set_total_key_range_group(this.ptr, arg0);
     }
     /**
+    * @returns {Array<any>}
     */
-    get pot() {
-        const ret = wasm.__wbg_get_win_pot(this.ptr);
+    get_cards() {
+        const ret = wasm.total_get_cards(this.ptr);
+        return takeObject(ret);
+    }
+    /**
+    * @returns {Array<any>}
+    */
+    show_cards() {
+        const ret = wasm.total_show_cards(this.ptr);
+        return takeObject(ret);
+    }
+    /**
+    * @returns {string}
+    */
+    show_combination() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.total_show_combination(retptr, this.ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_free(r0, r1);
+        }
+    }
+    /**
+    * @returns {string}
+    */
+    get_player_id() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.total_get_player_id(retptr, this.ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_free(r0, r1);
+        }
+    }
+    /**
+    * @returns {number}
+    */
+    get_win_pot() {
+        const ret = wasm.total_get_win_pot(this.ptr);
         return ret;
-    }
-    /**
-    * @param {number} arg0
-    */
-    set pot(arg0) {
-        wasm.__wbg_set_win_pot(this.ptr, arg0);
     }
 }
 
-export function __wbindgen_object_drop_ref(arg0) {
-    takeObject(arg0);
+export function __wbg_log_437df00577fb3353(arg0, arg1) {
+    console.log(getStringFromWasm0(arg0, arg1));
 };
 
 export function __wbg_card_new(arg0) {
@@ -571,23 +464,13 @@ export function __wbindgen_string_new(arg0, arg1) {
     return addHeapObject(ret);
 };
 
-export function __wbg_fullcombination_new(arg0) {
-    const ret = FullCombination.__wrap(arg0);
-    return addHeapObject(ret);
-};
-
-export function __wbindgen_object_clone_ref(arg0) {
-    const ret = getObject(arg0);
-    return addHeapObject(ret);
-};
-
-export function __wbg_log_437df00577fb3353(arg0, arg1) {
-    console.log(getStringFromWasm0(arg0, arg1));
-};
-
 export function __wbindgen_json_parse(arg0, arg1) {
     const ret = JSON.parse(getStringFromWasm0(arg0, arg1));
     return addHeapObject(ret);
+};
+
+export function __wbindgen_object_drop_ref(arg0) {
+    takeObject(arg0);
 };
 
 export function __wbg_newwithlength_e80fb11cf19c1628(arg0) {
@@ -599,31 +482,28 @@ export function __wbg_set_561aac756158708c(arg0, arg1, arg2) {
     getObject(arg0)[arg1 >>> 0] = takeObject(arg2);
 };
 
-export function __wbg_buffer_7af23f65f6c64548(arg0) {
-    const ret = getObject(arg0).buffer;
+export function __wbg_new_693216e109162396() {
+    const ret = new Error();
     return addHeapObject(ret);
 };
 
-export function __wbg_new_7fb6d86dfb4bf8c1(arg0) {
-    const ret = new Int32Array(getObject(arg0));
-    return addHeapObject(ret);
+export function __wbg_stack_0ddaca5d1abfb52f(arg0, arg1) {
+    const ret = getObject(arg1).stack;
+    const ptr0 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    getInt32Memory0()[arg0 / 4 + 1] = len0;
+    getInt32Memory0()[arg0 / 4 + 0] = ptr0;
 };
 
-export function __wbg_set_b9a0125477d1982b(arg0, arg1, arg2) {
-    getObject(arg0).set(getObject(arg1), arg2 >>> 0);
-};
-
-export function __wbg_length_b9cb8998b6b1d4a8(arg0) {
-    const ret = getObject(arg0).length;
-    return ret;
+export function __wbg_error_09919627ac0992f5(arg0, arg1) {
+    try {
+        console.error(getStringFromWasm0(arg0, arg1));
+    } finally {
+        wasm.__wbindgen_free(arg0, arg1);
+    }
 };
 
 export function __wbindgen_throw(arg0, arg1) {
     throw new Error(getStringFromWasm0(arg0, arg1));
-};
-
-export function __wbindgen_memory() {
-    const ret = wasm.memory;
-    return addHeapObject(ret);
 };
 
