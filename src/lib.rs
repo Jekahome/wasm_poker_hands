@@ -1481,6 +1481,7 @@ impl Pot {
         }
         let mut result: Vec<(String, i32)> = vec![];
         let mut pot: i32 = self.pot;
+
         for w in self.win_queue_group.iter() {
             if pot > 0 && self.players.len() > 0 {
                 let ids_group = w.iter().map(|v| v.to_owned()).collect::<Vec<String>>();
@@ -1491,8 +1492,11 @@ impl Pot {
                     .map(|u| u.1)
                     .sum::<i32>();
 
-                let group_max_pot: i32 =
+                let pre_group_max_pot: Option<i32> =
                     w.iter()
+                        .filter(|id|{
+                            self.players.iter().find(|u|&&u.0==id).is_some()  
+                        })
                         .map(|id| {
                             (
                                 id,
@@ -1506,10 +1510,14 @@ impl Pot {
                             )
                         })
                         .map(|(_id, bet_pot)| {
-                            self.sum_bet(bet_pot.unwrap(), ids_group.clone()).unwrap()
+                            self.sum_bet(bet_pot.unwrap(), ids_group.clone())
                         })
-                        .max()
-                        .unwrap();
+                        .max();
+
+                if pre_group_max_pot.is_none(){
+                    continue;
+                }
+                let group_max_pot: i32 = pre_group_max_pot.unwrap();
 
                 let mut total_chank: i32 = 0;
                 let mut res: Vec<(String, i32)> = self
@@ -1561,14 +1569,14 @@ impl Pot {
 
         return Some(wins);*/
     }
-    fn sum_bet(&self, bet_pot: i32, id_group: Vec<String>) -> Option<i32> {
+    fn sum_bet(&self, bet_pot: i32, id_group: Vec<String>) -> i32{
         let mut sum = 0;
         for i in self.players.iter() {
             if !id_group.contains(&i.0) {
                 sum += if bet_pot >= i.1 { i.1 } else { bet_pot };
             }
         }
-        Some(sum)
+        sum
     }
     fn check(&self) -> bool {
         {

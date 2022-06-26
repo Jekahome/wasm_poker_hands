@@ -166,6 +166,55 @@ fn it_manager_range() {
     });*/
 }
 
+// wasm-pack test --node -- -- test::it_split_diff_more_pot
+#[wasm_bindgen_test]
+fn it_split_diff_more_pot() {
+    let mut pot: Pot = Pot::new(120);
+    pot.add_player("1", 40);
+    pot.add_player("2", 10);
+    pot.add_player("3", 10);
+    pot.add_player("4", 40);
+    pot.add_player("5", 20);
+    
+    let arr = vec![String::from("3")];
+    pot.add_next_group_win_vec(arr);
+    let arr = vec![String::from("2"),String::from("5")];
+    pot.add_next_group_win_vec(arr);
+    let arr = vec![String::from("1")];
+    pot.add_next_group_win_vec(arr);
+    let arr = vec![String::from("4")];
+    pot.add_next_group_win_vec(arr);
+    let res: Vec<(String, i32)> = pot.calculate().unwrap();
+    assert_eq!(res.len(), 3_usize);
+    assert_eq!(res[0], (String::from("3"), 50));
+    assert_eq!(res[1], (String::from("5"), 30));
+    assert_eq!(res[2], (String::from("1"), 40));
+}
+
+// wasm-pack test --node -- -- test::it_split_diff_less_pot
+#[wasm_bindgen_test]
+fn it_split_diff_less_pot() {
+    let mut pot: Pot = Pot::new(100);
+    pot.add_player("1", 40);
+    pot.add_player("2", 10);
+    pot.add_player("3", 10);
+    pot.add_player("4", 40);
+    
+    let arr = vec![String::from("2")];
+    pot.add_next_group_win_vec(arr);
+    let arr = vec![String::from("3")];
+    pot.add_next_group_win_vec(arr);
+    let arr = vec![String::from("1")];
+    pot.add_next_group_win_vec(arr);
+    let arr = vec![String::from("4")];
+    pot.add_next_group_win_vec(arr);
+    let res: Vec<(String, i32)> = pot.calculate().unwrap();
+    assert_eq!(res.len(), 2_usize);
+    assert_eq!(res[0], (String::from("2"), 40));
+    assert_eq!(res[1], (String::from("1"), 60));
+    
+}
+
 // wasm-pack test --node -- -- test::it_split_pot
 #[wasm_bindgen_test]
 fn it_split_pot() {
